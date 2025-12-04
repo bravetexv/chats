@@ -1,0 +1,309 @@
+const { app, BrowserWindow, ipcMain, session } = require('electron');
+const path = require('path');
+
+let mainWindow;
+let kickWindow = null;
+
+function createWindow() {
+    mainWindow = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.cjs'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            webSecurity: false,
+            webSecurity: false,
+        },
+        // Disfrazar Electron como Chrome normal para evitar bloqueos de Streamlabs
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    });
+
+    // Detectar si estamos en desarrollo o producción
+    const isDev = !app.isPackaged;
+
+    if (isDev) {
+        // Modo desarrollo: cargar desde Vite dev server
+        mainWindow.loadURL('http://localhost:5173');
+        // DevTools can be opened manually with the 🛠️ button
+        // mainWindow.webContents.openDevTools({ mode: 'detach' });
+
+        // mainWindow.webContents.on('did-finish-load', () => {
+        //     if (!mainWindow.webContents.isDevToolsOpened()) {
+        //         mainWindow.webContents.openDevTools({ mode: 'detach' });
+        //     }
+        // });
+    } else {
+        // Modo producción: cargar desde dist
+        mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    }
+
+    mainWindow.on('closed', () => {
+        mainWindow = null;
+
+        // Cerrar ventana oculta si existe
+        if (kickWindow) {
+            kickWindow.destroy(); // Force close
+            kickWindow = null;
+        }
+
+        // Forzar el cierre inmediato de todo el proceso
+        app.exit(0);
+    });
+}
+
+// Manejadores de cookies
+ipcMain.handle('get-cookies', async (event, url) => {
+    try {
+        const cookies = await session.defaultSession.cookies.get({ url });
+        return cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
+    } catch (error) {
+        console.error('Error getting cookies:', error);
+        return null;
+    }
+});
+
+ipcMain.handle('set-cookie', async (event, cookieDetails) => {
+    try {
+        await session.defaultSession.cookies.set(cookieDetails);
+        return true;
+    } catch (error) {
+    }
+    return true;
+});
+
+// Manejadores para Kick Scraping
+ipcMain.handle('connect-kick', async (event, channel, showWindow = false) => {
+    try {
+        if (kickWindow) {
+            kickWindow.close();
+            kickWindow = null;
+        }
+
+        console.log('🔌 Connecting to Kick via hidden window:', channel);
+
+        kickWindow = new BrowserWindow({
+            width: 800,
+            height: 600,
+            show: showWindow,
+            webPreferences: {
+                preload: path.join(__dirname, 'kick-preload.cjs'),
+                nodeIntegration: false,
+                contextIsolation: true,
+                webSecurity: false,
+            },
+        });
+
+        const url = `https://kick.com/popout/${channel}/chat`;
+        await kickWindow.loadURL(url);
+
+        if (showWindow) {
+            kickWindow.on('closed', () => {
+                kickWindow = null;
+            });
+        }
+
+        return true;
+    } catch (error) {
+        console.error('Error connecting to Kick window:', error);
+        return false;
+    }
+});
+
+ipcMain.handle('show-kick-window', async () => {
+    if (!kickWindow) {
+        kickWindow = new BrowserWindow({
+            width: 800,
+            height: 600,
+            show: true,
+            webPreferences: {
+                preload: path.join(__dirname, 'kick-preload.cjs'),
+                nodeIntegration: false,
+                contextIsolation: true,
+                webSecurity: false,
+            },
+        });
+        await kickWindow.loadURL('https://kick.com/login');
+        kickWindow.on('closed', () => { kickWindow = null; });
+    } else {
+        kickWindow.show();
+    }
+    return true;
+});
+
+// Manejadores para Twitch Scraping
+let twitchWindow = null;
+
+ipcMain.handle('show-twitch-login', async () => {
+    if (twitchWindow) {
+        twitchWindow.show();
+        return true;
+    }
+
+    twitchWindow = new BrowserWindow({
+        width: 500,
+        height: 700,
+        show: true,
+        webPreferences: {
+            preload: path.join(__dirname, 'twitch-preload.cjs'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            webSecurity: false,
+        },
+    });
+
+    await twitchWindow.loadURL('https://www.twitch.tv/login');
+
+    twitchWindow.on('closed', () => {
+        twitchWindow = null;
+    });
+
+    return true;
+});
+
+ipcMain.handle('connect-twitch-window', async (event, channel) => {
+    if (!twitchWindow) {
+        twitchWindow = new BrowserWindow({
+            width: 800,
+            height: 600,
+            show: false,
+            webPreferences: {
+                preload: path.join(__dirname, 'twitch-preload.cjs'),
+                nodeIntegration: false,
+                contextIsolation: true,
+                webSecurity: false,
+            },
+        });
+    }
+
+    const url = `https://www.twitch.tv/popout/${channel}/chat`;
+    await twitchWindow.loadURL(url);
+    return true;
+});
+
+ipcMain.handle('send-twitch-message', async (event, message) => {
+    if (twitchWindow) {
+        twitchWindow.webContents.send('send-twitch-message', message);
+        return true;
+    }
+    return false;
+});
+
+ipcMain.handle('open-oauth-window', (event, url) => {
+    // Deprecated but kept for compatibility
+    return true;
+});
+
+ipcMain.handle('disconnect-kick', () => {
+    if (kickWindow) {
+        kickWindow.close();
+        kickWindow = null;
+    }
+    return true;
+});
+
+ipcMain.on('kick-message-from-window', (event, data) => {
+    if (mainWindow) {
+        mainWindow.webContents.send('kick-message', data);
+    }
+});
+
+ipcMain.on('kick-debug', (event, { msg, data }) => {
+    console.log(`[Kick Window] ${msg}`, data);
+});
+
+ipcMain.handle('send-kick-message', async (event, message) => {
+    if (kickWindow) {
+        kickWindow.webContents.send('send-kick-message', message);
+        return true;
+    }
+    return false;
+});
+
+// DevTools handler
+ipcMain.on('open-devtools', () => {
+    if (mainWindow) {
+        if (mainWindow.webContents.isDevToolsOpened()) {
+            mainWindow.webContents.closeDevTools();
+        } else {
+            mainWindow.webContents.openDevTools({ mode: 'detach' });
+        }
+    }
+});
+
+// YouTube backend handlers
+const youtubeBackend = require('./youtube-backend.cjs');
+
+ipcMain.handle('connect-youtube', async (event, channel) => {
+    try {
+        await youtubeBackend.connectYouTube(channel, mainWindow);
+        return true;
+    } catch (error) {
+        return false;
+    }
+});
+
+ipcMain.handle('disconnect-youtube', () => {
+    youtubeBackend.disconnectYouTube();
+    return true;
+});
+
+ipcMain.handle('send-youtube-message', async (event, message) => {
+    return await youtubeBackend.sendMessageYouTube(message);
+});
+
+
+
+// Manejador para ventanas de widgets independientes
+ipcMain.handle('open-widget-window', async (event, config) => {
+    try {
+        const widgetWindow = new BrowserWindow({
+            width: config.width || 800,
+            height: config.height || 600,
+            title: config.title || 'Widget',
+            transparent: true,
+            frame: false,
+            resizable: true,
+            alwaysOnTop: true,
+            skipTaskbar: false,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                webSecurity: false,
+            },
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        });
+
+        // Cargar la página wrapper con el widget
+        const wrapperPath = path.join(__dirname, 'widget-wrapper.html');
+        const wrapperUrl = `file://${wrapperPath}?url=${encodeURIComponent(config.url)}&title=${encodeURIComponent(config.title || 'Widget')}`;
+
+        console.log('🪟 Opening widget window:', config.title);
+        await widgetWindow.loadURL(wrapperUrl);
+
+        widgetWindow.on('closed', () => {
+            console.log('Widget window closed');
+        });
+
+        return true;
+    } catch (error) {
+        console.error('Error opening widget window:', error);
+        return false;
+    }
+});
+
+app.whenReady().then(() => {
+    createWindow();
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
+});
+
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        app.exit(0);
+    }
+});

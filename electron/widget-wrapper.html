@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: transparent;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #drag-bar {
+            -webkit-app-region: drag;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0.3;
+            transition: opacity 0.2s;
+            flex-shrink: 0;
+        }
+
+        body:hover #drag-bar {
+            opacity: 1;
+        }
+
+        #drag-bar .title {
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+            user-select: none;
+        }
+
+        #drag-bar .controls {
+            -webkit-app-region: no-drag;
+            display: flex;
+            gap: 5px;
+        }
+
+        #drag-bar button {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        #drag-bar button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #drag-bar .close-btn:hover {
+            background: rgba(255, 0, 0, 0.7);
+        }
+
+        #widget-frame {
+            width: 100%;
+            height: 100%;
+            flex: 1;
+            border: none;
+            background: transparent;
+        }
+
+        /* Resize handles */
+        .resize-handle {
+            position: absolute;
+            background: transparent;
+            transition: background 0.2s;
+        }
+
+        .resize-handle:hover {
+            background: rgba(147, 51, 234, 0.3);
+        }
+
+        .resize-corner {
+            width: 15px;
+            height: 15px;
+        }
+
+        .resize-edge {
+            background: transparent;
+        }
+
+        .resize-handle.top-left {
+            top: 0;
+            left: 0;
+            cursor: nw-resize;
+        }
+
+        .resize-handle.top-right {
+            top: 0;
+            right: 0;
+            cursor: ne-resize;
+        }
+
+        .resize-handle.bottom-left {
+            bottom: 0;
+            left: 0;
+            cursor: sw-resize;
+        }
+
+        .resize-handle.bottom-right {
+            bottom: 0;
+            right: 0;
+            cursor: se-resize;
+        }
+
+        .resize-handle.top {
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            cursor: n-resize;
+        }
+
+        .resize-handle.bottom {
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            cursor: s-resize;
+        }
+
+        .resize-handle.left {
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: w-resize;
+        }
+
+        .resize-handle.right {
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: e-resize;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="drag-bar">
+        <div class="title" id="widget-title">Widget</div>
+        <div class="controls">
+            <button onclick="window.close()" class="close-btn" title="Cerrar">✕</button>
+        </div>
+    </div>
+    <iframe id="widget-frame" allow="autoplay"></iframe>
+
+    <!-- Resize handles -->
+    <div class="resize-handle resize-corner top-left"></div>
+    <div class="resize-handle resize-corner top-right"></div>
+    <div class="resize-handle resize-corner bottom-left"></div>
+    <div class="resize-handle resize-corner bottom-right"></div>
+    <div class="resize-handle resize-edge top"></div>
+    <div class="resize-handle resize-edge bottom"></div>
+    <div class="resize-handle resize-edge left"></div>
+    <div class="resize-handle resize-edge right"></div>
+
+    <script>
+        // Obtener la URL del widget desde los parámetros
+        const urlParams = new URLSearchParams(window.location.search);
+        const widgetUrl = urlParams.get('url');
+        const widgetTitle = urlParams.get('title') || 'Widget';
+
+        if (widgetUrl) {
+            document.getElementById('widget-frame').src = widgetUrl;
+            document.getElementById('widget-title').textContent = widgetTitle;
+        }
+    </script>
+</body>
+
+</html>

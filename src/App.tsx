@@ -1,0 +1,710 @@
+import React, { useState, useRef } from 'react';
+import { Twitch, Youtube, Zap, Music, Settings, X, Info } from 'lucide-react';
+
+import { useChatStore } from './store/chatStore';
+import { useThemeStore, predefinedThemes } from './store/themeStore';
+import { connectTwitch, startTwitchOAuth } from './services/twitchService';
+import { connectYouTube } from './services/youtubeService';
+import { connectKick } from './services/kickService';
+import { WidgetsSidebar } from './components/WidgetsSidebar';
+import { UnifiedChat } from './components/UnifiedChat';
+
+// Notification Component
+function Notification({ message, type, onClose }: { message: string, type: 'error' | 'info' | 'success', onClose: () => void }) {
+  if (!message) return null;
+
+  const bgColor = type === 'error' ? 'bg-red-700/90' : type === 'success' ? 'bg-green-700/90' : 'bg-blue-700/90';
+
+  return (
+    <div className={`fixed top-4 right-4 z-[9999] p-4 ${bgColor} text-white rounded-lg shadow-xl flex items-center gap-3 animate-slideIn`}>
+      <Info className="w-5 h-5" />
+      <span>{message}</span>
+      <button onClick={onClose} className="ml-4 text-white/70 hover:text-white">
+        <X className="w-4 h-4" />
+      </button>
+      <style>{`
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slideIn {
+          animation: slideIn 0.3s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function ConnectionStatus({ platform, icon, connected, viewerCount }: { platform: string, icon: React.ReactNode, connected: boolean, viewerCount?: number }) {
+  const formatViewers = (count: number) => {
+    if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}K`;
+    }
+    return count.toString();
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+      <span className="text-white/70 capitalize flex items-center gap-1">
+        {icon}
+        {platform}
+      </span>
+    </div>
+  );
+}
+
+
+
+function SettingsContent({ setShowSettings, showNotification }: { setShowSettings: (show: boolean) => void, showNotification: (msg: string, type: 'error' | 'info' | 'success') => void }) {
+  const [activeTab, setActiveTab] = useState('connections');
+
+  const [twitchChannel, setTwitchChannel] = useState('');
+  const [youtubeChannel, setYoutubeChannel] = useState('');
+  const [kickChannel, setKickChannel] = useState('');
+  const [tiktokChannel, setTiktokChannel] = useState('');
+  const [genericUrl, setGenericUrl] = useState('');
+
+  const { currentTheme, setTheme, setCustomBackground, setBackgroundBlur, setBackgroundOpacity } = useThemeStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // TTS State
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const { ttsEnabled, ttsReadName, ttsVoice, ttsLanguage, ttsRate, ttsPitch, ttsVolume, setTtsEnabled, setTtsReadName, setTtsVoice, setTtsLanguage, setTtsRate, setTtsPitch, setTtsVolume } = useChatStore();
+
+  // Load voices
+  React.useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, []);
+
+  const handleConnectTwitch = async () => {
+    if (twitchChannel) {
+      try {
+        await connectTwitch(twitchChannel);
+        showNotification(`Conectado a Twitch: ${twitchChannel}`, 'success');
+      } catch (error) {
+        showNotification('Error al conectar a Twitch', 'error');
+      }
+    }
+  };
+
+  const handleConnectYouTube = async () => {
+    if (youtubeChannel) {
+      try {
+        await connectYouTube(youtubeChannel);
+        showNotification(`Conectado a YouTube: ${youtubeChannel}`, 'success');
+      } catch (error) {
+        showNotification('Error al conectar a YouTube', 'error');
+      }
+    }
+  };
+
+  const handleConnectKick = async () => {
+    if (kickChannel) {
+      try {
+        await connectKick(kickChannel);
+        showNotification(`Conectado a Kick: ${kickChannel}`, 'success');
+      } catch (error) {
+        showNotification('Error al conectar a Kick', 'error');
+      }
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageUrl = event.target?.result as string;
+        setCustomBackground(imageUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div>
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-white/10">
+        <button
+          onClick={() => setActiveTab('connections')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'connections'
+            ? 'text-purple-400 border-b-2 border-purple-400'
+            : 'text-white/50 hover:text-white/70'
+            }`}
+        >
+          Conexiones
+        </button>
+        <button
+          onClick={() => setActiveTab('themes')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'themes'
+            ? 'text-purple-400 border-b-2 border-purple-400'
+            : 'text-white/50 hover:text-white/70'
+            }`}
+        >
+          Temas y Fondo
+        </button>
+        <button
+          onClick={() => setActiveTab('accessibility')}
+          className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'accessibility'
+            ? 'text-purple-400 border-b-2 border-purple-400'
+            : 'text-white/50 hover:text-white/70'
+            }`}
+        >
+          Accesibilidad
+        </button>
+
+      </div>
+
+      {/* Conexiones Tab */}
+      {activeTab === 'connections' && (
+        <div className="space-y-6">
+          {/* Twitch */}
+          <div>
+            <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
+              <span className="text-purple-400">🟣</span> Canal de Twitch
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={twitchChannel}
+                onChange={(e) => setTwitchChannel(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleConnectTwitch()}
+                placeholder="nombre_del_canal"
+                className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              <button
+                onClick={handleConnectTwitch}
+                className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Conectar
+              </button>
+            </div>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                startTwitchOAuth();
+                showNotification('Ventana de Twitch abierta. Inicia sesión si es necesario, luego cierra la ventana y usa el botón "Conectar" arriba.', 'info');
+              }}
+              className="mt-2 w-full bg-purple-600/50 text-white px-4 py-2 rounded-lg hover:bg-purple-600 text-sm transition-colors"
+            >
+              🔐 Iniciar Sesión en Twitch (si es necesario)
+            </button>
+            <p className="text-white/40 text-xs mt-1">
+              <strong>Paso 1:</strong> Si no estás logueado, haz clic arriba para iniciar sesión.
+              <br />
+              <strong>Paso 2:</strong> Luego cierra la ventana de login y usa el botón "Conectar" de arriba con el nombre del canal.
+              <br />
+              💡 La aplicación usará tu sesión automáticamente.
+            </p>
+          </div>
+
+          {/* YouTube */}
+          <div>
+            <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
+              <span className="text-red-400">🔴</span> Canal de YouTube
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={youtubeChannel}
+                onChange={(e) => setYoutubeChannel(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleConnectYouTube()}
+                placeholder="@username o link del canal"
+                className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+              <button
+                onClick={handleConnectYouTube}
+                className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Conectar
+              </button>
+            </div>
+            <div className="mt-2 text-white/40 text-xs space-y-1">
+              <p>✅ La API está configurada y funcional</p>
+              <p>⚠️ Solo funciona si el canal está en vivo</p>
+              <p>💡 El envío de mensajes requiere que seas el dueño del canal</p>
+            </div>
+          </div>
+
+          {/* Kick */}
+          <div>
+            <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
+              <span className="text-green-400">🟢</span> Canal de Kick
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={kickChannel}
+                onChange={(e) => setKickChannel(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleConnectKick()}
+                placeholder="username"
+                className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <button
+                onClick={handleConnectKick}
+                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Conectar
+              </button>
+            </div>
+            <button
+              onClick={async (e) => {
+                e.preventDefault();
+                if ((window as any).electron) {
+                  await (window as any).electron.showKickWindow();
+                  showNotification('Ventana de Kick abierta. Inicia sesión si es necesario, luego cierra la ventana y usa el botón "Conectar" arriba.', 'info');
+                } else {
+                  showNotification('Esta función solo está disponible en la versión de escritorio', 'error');
+                }
+              }}
+              className="mt-2 w-full bg-green-600/50 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm transition-colors"
+            >
+              🔐 Iniciar Sesión en Kick (si es necesario)
+            </button>
+            <p className="text-white/40 text-xs mt-1">
+              <strong>Paso 1:</strong> Si no estás logueado, haz clic arriba para iniciar sesión.
+              <br />
+              <strong>Paso 2:</strong> Luego cierra la ventana de login y usa el botón "Conectar" de arriba con el nombre del canal.
+              <br />
+              💡 La aplicación usará tu sesión automáticamente.
+            </p>
+          </div>
+
+          {/* TikTok */}
+          <div>
+            <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
+              <span className="text-pink-400">🩷</span> Usuario de TikTok
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tiktokChannel}
+                onChange={(e) => setTiktokChannel(e.target.value)}
+                placeholder="@username"
+                disabled
+                className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 opacity-50 cursor-not-allowed"
+              />
+              <button
+                disabled
+                className="bg-pink-600 text-white px-6 py-2 rounded-lg opacity-50 cursor-not-allowed"
+              >
+                Conectar
+              </button>
+            </div>
+            <p className="text-white/40 text-xs mt-1">💡 Próximamente</p>
+          </div>
+        </div>
+      )}
+
+      {/* Temas Tab */}
+      {activeTab === 'themes' && (
+        <div className="space-y-6">
+          {/* Temas Predefinidos */}
+          <div>
+            <label className="text-white/70 text-sm mb-3 block font-semibold">Temas Predefinidos</label>
+            <div className="grid grid-cols-2 gap-3">
+              {predefinedThemes.map((theme) => (
+                <button
+                  key={theme.name}
+                  onClick={() => setTheme(theme)}
+                  className={`p-4 rounded-lg text-sm font-medium transition-all ${currentTheme.name === theme.name
+                    ? 'ring-2 ring-purple-500 bg-white/20'
+                    : 'bg-white/10 hover:bg-white/15'
+                    }`}
+                >
+                  <div className={`h-12 rounded mb-2 bg-gradient-to-r ${theme.gradient}`}></div>
+                  <div className="text-white">{theme.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Imagen de Fondo Personalizada */}
+          <div>
+            <label className="text-white/70 text-sm mb-3 block font-semibold">Imagen de Fondo Personalizada</label>
+            <div className="space-y-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                id="background-upload"
+              />
+              <div className="flex gap-2">
+                <label
+                  htmlFor="background-upload"
+                  className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer text-center text-sm font-medium transition-colors"
+                >
+                  📁 Subir Imagen
+                </label>
+                {currentTheme.backgroundImage && (
+                  <button
+                    onClick={() => setCustomBackground(null)}
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+                  >
+                    🗑️ Quitar
+                  </button>
+                )}
+              </div>
+
+              {currentTheme.backgroundImage && (
+                <div className="space-y-3 bg-white/5 p-4 rounded-lg">
+                  <div className="relative h-32 rounded overflow-hidden">
+                    <img
+                      src={currentTheme.backgroundImage}
+                      alt="Background preview"
+                      className="w-full h-full object-cover"
+                      style={{
+                        filter: `blur(${currentTheme.backgroundBlur}px)`,
+                        opacity: currentTheme.backgroundOpacity / 100,
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-white/70 text-xs mb-1 block">
+                      Desenfoque: {currentTheme.backgroundBlur}px
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="20"
+                      value={currentTheme.backgroundBlur}
+                      onChange={(e) => setBackgroundBlur(Number(e.target.value))}
+                      className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-white/70 text-xs mb-1 block">
+                      Opacidad: {currentTheme.backgroundOpacity}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={currentTheme.backgroundOpacity}
+                      onChange={(e) => setBackgroundOpacity(Number(e.target.value))}
+                      className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Accesibilidad Tab */}
+      {activeTab === 'accessibility' && (
+        <div className="space-y-6">
+          <div>
+            <label className="text-white/70 text-sm mb-3 block font-semibold">Text-to-Speech (Voz)</label>
+            <div className="space-y-4 bg-white/5 p-4 rounded-lg">
+              {/* Enable TTS */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-white font-medium">Leer mensajes por voz</div>
+                  <div className="text-white/50 text-xs">Lee automáticamente los mensajes nuevos</div>
+                </div>
+                <button
+                  onClick={() => setTtsEnabled(!ttsEnabled)}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${ttsEnabled ? 'bg-purple-600' : 'bg-white/20'}`}
+                >
+                  <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${ttsEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Read Name */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-white font-medium">Leer nombre del usuario</div>
+                  <div className="text-white/50 text-xs">Incluye el nombre del remitente antes del mensaje</div>
+                </div>
+                <button
+                  onClick={() => setTtsReadName(!ttsReadName)}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${ttsReadName ? 'bg-purple-600' : 'bg-white/20'}`}
+                >
+                  <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${ttsReadName ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Language Selection */}
+              <div>
+                <label className="text-white font-medium mb-2 block">Filtrar voces por idioma</label>
+                <select
+                  value={ttsLanguage}
+                  onChange={(e) => {
+                    setTtsLanguage(e.target.value);
+                    setTtsVoice(''); // Reset voice when language changes
+                  }}
+                  className="w-full bg-white/10 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  style={{ colorScheme: 'dark' }}
+                >
+                  <option value="" style={{ backgroundColor: '#1f2937', color: 'white' }}>🌍 Todos los idiomas</option>
+                  <option value="es" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇪🇸 Español</option>
+                  <option value="en" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇺🇸 Inglés</option>
+                  <option value="pt" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇧🇷 Portugués</option>
+                  <option value="fr" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇫🇷 Francés</option>
+                  <option value="de" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇩🇪 Alemán</option>
+                  <option value="it" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇹 Italiano</option>
+                  <option value="ja" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇯🇵 Japonés</option>
+                  <option value="ko" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇰🇷 Coreano</option>
+                  <option value="zh" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇨🇳 Chino</option>
+                  <option value="ru" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇷🇺 Ruso</option>
+                  <option value="ar" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇸🇦 Árabe</option>
+                  <option value="hi" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇳 Hindi</option>
+                  <option value="nl" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇳🇱 Holandés</option>
+                  <option value="pl" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇵🇱 Polaco</option>
+                  <option value="tr" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇹🇷 Turco</option>
+                  <option value="sv" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇸🇪 Sueco</option>
+                  <option value="da" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇩🇰 Danés</option>
+                  <option value="no" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇳🇴 Noruego</option>
+                  <option value="fi" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇫🇮 Finlandés</option>
+                  <option value="el" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇬🇷 Griego</option>
+                  <option value="he" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇱 Hebreo</option>
+                  <option value="th" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇹🇭 Tailandés</option>
+                  <option value="vi" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇻🇳 Vietnamita</option>
+                  <option value="id" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇩 Indonesio</option>
+                  <option value="cs" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇨🇿 Checo</option>
+                  <option value="hu" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇭🇺 Húngaro</option>
+                  <option value="ro" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇷🇴 Rumano</option>
+                  <option value="uk" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇺🇦 Ucraniano</option>
+                  <option value="ca" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇪🇸 Catalán</option>
+                </select>
+                <p className="text-xs text-white/40 mt-1">Filtra las voces por idioma</p>
+              </div>
+
+              {/* Voice Selection */}
+              <div>
+                <label className="text-white font-medium mb-2 block">Voz ({ttsLanguage ? `Idioma: ${ttsLanguage}` : 'Todas'})</label>
+                <select
+                  value={ttsVoice}
+                  onChange={(e) => setTtsVoice(e.target.value)}
+                  className="w-full bg-white/10 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  style={{ colorScheme: 'dark' }}
+                >
+                  <option value="" style={{ backgroundColor: '#1f2937', color: 'white' }}>Voz por defecto del sistema</option>
+                  {availableVoices
+                    .filter(voice => !ttsLanguage || voice.lang.startsWith(ttsLanguage))
+                    .map((voice) => (
+                      <option key={voice.voiceURI} value={voice.voiceURI} style={{ backgroundColor: '#1f2937', color: 'white' }}>
+                        {voice.name} ({voice.lang})
+                      </option>
+                    ))}
+                </select>
+                {ttsLanguage && availableVoices.filter(voice => voice.lang.startsWith(ttsLanguage)).length === 0 && (
+                  <p className="text-xs text-red-400 mt-1">⚠️ No hay voces disponibles para este idioma</p>
+                )}
+              </div>
+
+              {/* Rate Control */}
+              <div>
+                <label className="text-white font-medium mb-1 block">
+                  Velocidad: {ttsRate.toFixed(1)}x
+                </label>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={ttsRate}
+                  onChange={(e) => setTtsRate(Number(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <div className="flex justify-between text-xs text-white/40 mt-1">
+                  <span>Lento</span>
+                  <span>Rápido</span>
+                </div>
+              </div>
+
+              {/* Pitch Control */}
+              <div>
+                <label className="text-white font-medium mb-1 block">
+                  Tono: {ttsPitch.toFixed(1)}
+                </label>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={ttsPitch}
+                  onChange={(e) => setTtsPitch(Number(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <div className="flex justify-between text-xs text-white/40 mt-1">
+                  <span>Grave</span>
+                  <span>Agudo</span>
+                </div>
+              </div>
+
+              {/* Volume Control */}
+              <div>
+                <label className="text-white font-medium mb-1 block">
+                  Volumen: {Math.round(ttsVolume * 100)}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={ttsVolume}
+                  onChange={(e) => setTtsVolume(Number(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+                <div className="flex justify-between text-xs text-white/40 mt-1">
+                  <span>Silencio</span>
+                  <span>Máximo</span>
+                </div>
+              </div>
+
+              {/* Test Button */}
+              <button
+                onClick={() => {
+                  const testText = ttsReadName ? "Usuario de ejemplo dice: Este es un mensaje de prueba" : "Este es un mensaje de prueba";
+                  const utterance = new SpeechSynthesisUtterance(testText);
+                  utterance.lang = ttsLanguage || 'es-ES';
+                  utterance.rate = ttsRate;
+                  utterance.pitch = ttsPitch;
+                  utterance.volume = ttsVolume;
+                  if (ttsVoice) {
+                    const voices = window.speechSynthesis.getVoices();
+                    const selectedVoice = voices.find(v => v.voiceURI === ttsVoice);
+                    if (selectedVoice) utterance.voice = selectedVoice;
+                  }
+                  window.speechSynthesis.speak(utterance);
+                }}
+                className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors font-medium"
+              >
+                🔊 Probar Voz
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+    </div>
+  );
+}
+
+function App() {
+
+
+  const { connectedPlatforms } = useChatStore();
+  const { currentTheme } = useThemeStore();
+  const [showSettings, setShowSettings] = useState(false);
+  const [notification, setNotification] = useState<{ message: string, type: 'error' | 'info' | 'success' }>({ message: '', type: 'info' });
+
+  const showNotification = (message: string, type: 'error' | 'info' | 'success' = 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification({ message: '', type: 'info' }), 5000);
+  };
+
+  const backgroundStyle = currentTheme.backgroundImage
+    ? {
+      backgroundImage: `url(${currentTheme.backgroundImage})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+    }
+    : {};
+
+  return (
+    <div className={`h-screen flex flex-col bg-gradient-to-br ${currentTheme.gradient} relative overflow-hidden font-sans`}>
+      <Notification message={notification.message} type={notification.type} onClose={() => setNotification({ message: '', type: 'info' })} />
+
+      {/* Background Image with Blur */}
+      {currentTheme.backgroundImage && (
+        <div
+          className="absolute inset-0 -z-10"
+          style={{
+            ...backgroundStyle,
+            filter: `blur(${currentTheme.backgroundBlur}px)`,
+            opacity: currentTheme.backgroundOpacity / 100,
+          }}
+        />
+      )}
+
+      {/* Header */}
+      <header className="bg-black/40 backdrop-blur-md border-b border-white/10 p-4 relative z-10">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-2 rounded-lg shadow-lg">
+              <Zap className="w-6 h-6" />
+            </div>
+            Multi-Platform Chat Manager
+          </h1>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                if ((window as any).electron) {
+                  (window as any).electron.openDevTools();
+                }
+              }}
+              className="bg-white/10 text-white px-4 py-2 rounded-xl hover:bg-white/20 transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+              title="Abrir Consola de Desarrollo"
+            >
+              🛠️
+            </button>
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="bg-white/10 text-white px-4 py-2 rounded-xl hover:bg-white/20 transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
+            >
+              <Settings className="w-5 h-5" />
+              Configuración
+            </button>
+          </div>
+        </div>
+        <div className="flex gap-4 mt-3">
+          <ConnectionStatus platform="Twitch" icon={<Twitch className="w-4 h-4" />} connected={connectedPlatforms.twitch} />
+          <ConnectionStatus platform="YouTube" icon={<Youtube className="w-4 h-4" />} connected={connectedPlatforms.youtube} />
+          <ConnectionStatus platform="Kick" icon={<Zap className="w-4 h-4" />} connected={connectedPlatforms.kick} />
+          <ConnectionStatus platform="TikTok" icon={<Music className="w-4 h-4" />} connected={connectedPlatforms.tiktok} />
+        </div>
+      </header>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-extrabold text-white">Configuración del Gestor</h2>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-2 text-white/50 hover:text-white bg-white/5 rounded-full transition-colors"
+                  aria-label="Cerrar Configuración"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <SettingsContent setShowSettings={setShowSettings} showNotification={showNotification} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content - Widgets and Chat */}
+      <div className="flex-1 overflow-hidden relative z-10 flex">
+        {/* Widgets Sidebar */}
+        <WidgetsSidebar />
+
+        {/* Center Chat Area */}
+        <div className="flex-1 p-4 overflow-hidden relative">
+          <UnifiedChat messages={useChatStore().messages} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;

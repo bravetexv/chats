@@ -1,0 +1,6 @@
+@echo off
+echo Iniciando Multi-Platform Chat Manager...
+echo La aplicacion se abrira en unos segundos...
+start /min "" wscript.exe "%~dp0start_dev.vbs"
+timeout /t 2 /nobreak >nul
+exit
