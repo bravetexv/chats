@@ -35,14 +35,7 @@ function Notification({ message, type, onClose }: { message: string, type: 'erro
   );
 }
 
-function ConnectionStatus({ platform, icon, connected, viewerCount }: { platform: string, icon: React.ReactNode, connected: boolean, viewerCount?: number }) {
-  const formatViewers = (count: number) => {
-    if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}K`;
-    }
-    return count.toString();
-  };
-
+function ConnectionStatus({ platform, icon, connected }: { platform: string, icon: React.ReactNode, connected: boolean }) {
   return (
     <div className="flex items-center gap-2 text-sm">
       <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
@@ -56,14 +49,13 @@ function ConnectionStatus({ platform, icon, connected, viewerCount }: { platform
 
 
 
-function SettingsContent({ setShowSettings, showNotification }: { setShowSettings: (show: boolean) => void, showNotification: (msg: string, type: 'error' | 'info' | 'success') => void }) {
+function SettingsContent({ showNotification }: { showNotification: (msg: string, type: 'error' | 'info' | 'success') => void }) {
   const [activeTab, setActiveTab] = useState('connections');
 
   const [twitchChannel, setTwitchChannel] = useState('');
   const [youtubeChannel, setYoutubeChannel] = useState('');
   const [kickChannel, setKickChannel] = useState('');
   const [tiktokChannel, setTiktokChannel] = useState('');
-  const [genericUrl, setGenericUrl] = useState('');
 
   const { currentTheme, setTheme, setCustomBackground, setBackgroundBlur, setBackgroundOpacity } = useThemeStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -687,7 +679,7 @@ function App() {
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              <SettingsContent setShowSettings={setShowSettings} showNotification={showNotification} />
+              <SettingsContent showNotification={showNotification} />
             </div>
           </div>
         </div>

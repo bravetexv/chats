@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Move, X, ArrowLeftToLine, ArrowRightToLine } from 'lucide-react';
+import { Move, X } from 'lucide-react';
 import { useWidgetStore, type Widget } from '../store/widgetStore';
 import { useChatStore } from '../store/chatStore';
 
@@ -266,7 +266,7 @@ function StatsWidget({ messages, viewerCounts }: { messages: any[]; viewerCounts
                 {Object.entries(messagesByPlatform).map(([platform, count]) => (
                     <div key={platform} className="flex justify-between text-white/70">
                         <span className="capitalize">{platform}:</span>
-                        <span>{count}</span>
+                        <span>{count as number}</span>
                     </div>
                 ))}
             </div>
