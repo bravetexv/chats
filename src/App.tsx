@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Twitch, Youtube, Zap, Music, Settings, X, Info, Copy, Globe, Server, Gift, CreditCard, Wallet, DollarSign } from 'lucide-react';
+import { Twitch, Youtube, Zap, Settings, X, Info, Copy, Globe, Server, Gift, CreditCard, Wallet, DollarSign } from 'lucide-react';
 
 import { useChatStore } from './store/chatStore';
 import { useThemeStore, predefinedThemes } from './store/themeStore';
@@ -171,7 +171,6 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
   const [twitchChannel, setTwitchChannel] = useState('');
   const [youtubeChannel, setYoutubeChannel] = useState('');
   const [kickChannel, setKickChannel] = useState('');
-  const [tiktokChannel, setTiktokChannel] = useState('');
 
   const { currentTheme, setTheme, setCustomBackground, setBackgroundBlur, setBackgroundOpacity } = useThemeStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -395,29 +394,7 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
               </p>
             </div>
 
-            {/* TikTok */}
-            <div>
-              <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
-                <span className="text-pink-400">🩷</span> Usuario de TikTok
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={tiktokChannel}
-                  onChange={(e) => setTiktokChannel(e.target.value)}
-                  placeholder="@username"
-                  disabled
-                  className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 opacity-50 cursor-not-allowed"
-                />
-                <button
-                  disabled
-                  className="bg-pink-600 text-white px-6 py-2 rounded-lg opacity-50 cursor-not-allowed"
-                >
-                  Conectar
-                </button>
-              </div>
-              <p className="text-white/40 text-xs mt-1">💡 Próximamente</p>
-            </div>
+
           </div>
         )
       }
@@ -885,7 +862,6 @@ function App() {
           <ConnectionStatus platform="Twitch" icon={<Twitch className="w-4 h-4" />} connected={connectedPlatforms.twitch} />
           <ConnectionStatus platform="YouTube" icon={<Youtube className="w-4 h-4" />} connected={connectedPlatforms.youtube} />
           <ConnectionStatus platform="Kick" icon={<Zap className="w-4 h-4" />} connected={connectedPlatforms.kick} />
-          <ConnectionStatus platform="TikTok" icon={<Music className="w-4 h-4" />} connected={connectedPlatforms.tiktok} />
         </div>
       </header>
 

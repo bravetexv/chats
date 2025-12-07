@@ -100,26 +100,6 @@ export function WidgetsSidebar() {
                 </div>
             </div>
 
-            <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded-lg space-y-2 text-xs text-white/70">
-                <div className="font-semibold text-blue-300 text-sm mb-2">💡 Ejemplos de uso:</div>
-                <div className="space-y-1">
-                    <p><strong className="text-white/90">Streamlabs:</strong></p>
-                    <p className="text-white/50 text-[10px] break-all">
-                        streamlabs.com/widgets/alertbox/...
-                    </p>
-                    <p className="mt-2"><strong className="text-white/90">StreamElements:</strong></p>
-                    <p className="text-white/50 text-[10px] break-all">
-                        streamelements.com/overlay/...
-                    </p>
-                </div>
-            </div>
-
-            <div className="mt-4 text-white/50 text-xs space-y-2 bg-white/5 p-3 rounded-lg">
-                <p>🪟 Los widgets se abren en ventanas separadas</p>
-                <p>👁️ Las ventanas son transparentes (estilo OBS)</p>
-                <p>👆 Puedes mover y redimensionar cada ventana</p>
-            </div>
-
             {widgets.length > 0 && (
                 <div className="mt-4">
                     <h3 className="text-white/70 text-xs font-semibold mb-2">
