@@ -730,31 +730,56 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
 
 function DonationModal({ onClose }: { onClose: () => void }) {
   // CONFIGURACIÓN DE LINKS DE DONACIÓN
-  // Reemplaza estos links con los tuyos
-  const PAYPAL_URL = "https://paypal.me/TU_USUARIO";
-  const MERCADOPAGO_URL = "https://link.mercadopago.com.ar/TU_USUARIO";
-  const ASTROPAY_URL = "https://astropay.com";
+  const PAYPAL_URL = "https://paypal.me/lautaro04db"; // Asumiendo formato paypal.me para el correo, o mailto si prefiere
+  // Si el usuario prefiere el link de paypal.me asociado al correo, lo ideal es usar ese. 
+  // Dado que dio un correo, pondré un mailto o un link genérico de paypal, pero lo más útil es paypal.me.
+  // Voy a usar un link genérico de paypal con el correo o simplemente mostrar el correo en la UI si es necesario.
+  // Sin embargo, el botón es un <a> href. Un mailto podría servir, o un link a paypal.me si existe.
+  // Asumiré que quiere que la gente le envíe dinero a ese correo.
+  // Mejor opción para botón: Link a paypal.me si se puede deducir, o dejar el correo visible.
+  // Voy a configurar el botón de PayPal para ir a paypal.com y copiar el correo, o usar un link de pago si tuviera.
+  // Como es un botón, haré que el de PayPal sea un link a paypal.me/lautaro04db si existe, o https://www.paypal.com/myaccount/transfer/homepage
+
+  // Re-reading request: "paypal correo: lautaro.04db@gmail.com"
+  // AstroPay CVU: ...
+
+  // Voy a modificar la estructura de datos para permitir copiar valores (como el CVU) en lugar de solo abrir links.
 
   const donationLinks = [
     {
       name: 'PayPal',
       icon: <DollarSign className="w-6 h-6 text-blue-400" />,
-      url: PAYPAL_URL,
-      color: 'bg-blue-600 hover:bg-blue-700'
+      value: 'lautaro.04db@gmail.com',
+      type: 'copy', // Nuevo tipo para copiar
+      color: 'bg-blue-600 hover:bg-blue-700',
+      actionLabel: 'Copiar Correo'
     },
     {
       name: 'Mercado Pago',
       icon: <CreditCard className="w-6 h-6 text-blue-300" />,
-      url: MERCADOPAGO_URL,
-      color: 'bg-sky-500 hover:bg-sky-600'
+      url: 'https://link.mercadopago.com.ar/bravoxv',
+      type: 'link',
+      color: 'bg-sky-500 hover:bg-sky-600',
+      actionLabel: 'Ir a Pagar'
     },
     {
       name: 'AstroPay',
       icon: <Wallet className="w-6 h-6 text-red-400" />,
-      url: ASTROPAY_URL,
-      color: 'bg-red-600 hover:bg-red-700'
+      url: 'https://onetouch.astropay.com/payment?external_reference_id=yQiEgcp2RSzCgFAkyjJiXyEY4fdbNyh1',
+      type: 'link',
+      color: 'bg-red-600 hover:bg-red-700',
+      actionLabel: 'Ir a Pagar'
     }
   ];
+
+  const handleAction = (link: any) => {
+    if (link.type === 'link') {
+      window.open(link.url, '_blank');
+    } else if (link.type === 'copy') {
+      navigator.clipboard.writeText(link.value);
+      alert(`${link.name} copiado al portapapeles: ${link.value}`);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -763,18 +788,22 @@ function DonationModal({ onClose }: { onClose: () => void }) {
       </p>
       <div className="grid gap-3">
         {donationLinks.map((link) => (
-          <a
+          <button
             key={link.name}
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex items-center gap-4 p-4 rounded-xl transition-all transform hover:scale-105 ${link.color} text-white shadow-lg group`}
+            onClick={() => handleAction(link)}
+            className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all transform hover:scale-105 ${link.color} text-white shadow-lg group text-left`}
           >
             <div className="bg-white/20 p-2 rounded-lg group-hover:bg-white/30 transition-colors">
               {link.icon}
             </div>
-            <div className="font-bold text-lg">{link.name}</div>
-          </a>
+            <div className="flex-1">
+              <div className="font-bold text-lg">{link.name}</div>
+              {link.type === 'copy' && <div className="text-xs opacity-80 font-mono">{link.value}</div>}
+            </div>
+            <div className="text-xs bg-black/20 px-2 py-1 rounded">
+              {link.actionLabel}
+            </div>
+          </button>
         ))}
       </div>
     </div>
