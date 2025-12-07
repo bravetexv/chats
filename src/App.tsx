@@ -728,17 +728,12 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
   );
 }
 
-function DonationModal({ onClose }: { onClose: () => void }) {
+function DonationModal() {
   // CONFIGURACIÓN DE LINKS DE DONACIÓN
-  const PAYPAL_URL = "https://paypal.me/lautaro04db"; // Asumiendo formato paypal.me para el correo, o mailto si prefiere
-  // Si el usuario prefiere el link de paypal.me asociado al correo, lo ideal es usar ese. 
-  // Dado que dio un correo, pondré un mailto o un link genérico de paypal, pero lo más útil es paypal.me.
-  // Voy a usar un link genérico de paypal con el correo o simplemente mostrar el correo en la UI si es necesario.
-  // Sin embargo, el botón es un <a> href. Un mailto podría servir, o un link a paypal.me si existe.
-  // Asumiré que quiere que la gente le envíe dinero a ese correo.
-  // Mejor opción para botón: Link a paypal.me si se puede deducir, o dejar el correo visible.
-  // Voy a configurar el botón de PayPal para ir a paypal.com y copiar el correo, o usar un link de pago si tuviera.
-  // Como es un botón, haré que el de PayPal sea un link a paypal.me/lautaro04db si existe, o https://www.paypal.com/myaccount/transfer/homepage
+  // paypal correo: lautaro.04db@gmail.com
+  // AstroPay CVU: ...
+
+  // Voy a modificar la estructura de datos para permitir copiar valores (como el CVU) en lugar de solo abrir links.
 
   // Re-reading request: "paypal correo: lautaro.04db@gmail.com"
   // AstroPay CVU: ...
@@ -911,7 +906,7 @@ function App() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <DonationModal onClose={() => setShowDonations(false)} />
+              <DonationModal />
             </div>
             <style>{`
               @keyframes fadeIn {
