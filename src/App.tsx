@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Twitch, Youtube, Zap, Music, Settings, X, Info, Copy, Globe, Server } from 'lucide-react';
+import { Twitch, Youtube, Zap, Music, Settings, X, Info, Copy, Globe, Server, Gift, CreditCard, Wallet, DollarSign } from 'lucide-react';
 
 import { useChatStore } from './store/chatStore';
 import { useThemeStore, predefinedThemes } from './store/themeStore';
@@ -728,12 +728,66 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
   );
 }
 
+function DonationModal({ onClose }: { onClose: () => void }) {
+  // CONFIGURACIÓN DE LINKS DE DONACIÓN
+  // Reemplaza estos links con los tuyos
+  const PAYPAL_URL = "https://paypal.me/TU_USUARIO";
+  const MERCADOPAGO_URL = "https://link.mercadopago.com.ar/TU_USUARIO";
+  const ASTROPAY_URL = "https://astropay.com";
+
+  const donationLinks = [
+    {
+      name: 'PayPal',
+      icon: <DollarSign className="w-6 h-6 text-blue-400" />,
+      url: PAYPAL_URL,
+      color: 'bg-blue-600 hover:bg-blue-700'
+    },
+    {
+      name: 'Mercado Pago',
+      icon: <CreditCard className="w-6 h-6 text-blue-300" />,
+      url: MERCADOPAGO_URL,
+      color: 'bg-sky-500 hover:bg-sky-600'
+    },
+    {
+      name: 'AstroPay',
+      icon: <Wallet className="w-6 h-6 text-red-400" />,
+      url: ASTROPAY_URL,
+      color: 'bg-red-600 hover:bg-red-700'
+    }
+  ];
+
+  return (
+    <div className="space-y-4">
+      <p className="text-white/70 text-sm mb-4">
+        Apoya el canal a través de cualquiera de estas plataformas. ¡Muchas gracias!
+      </p>
+      <div className="grid gap-3">
+        {donationLinks.map((link) => (
+          <a
+            key={link.name}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex items-center gap-4 p-4 rounded-xl transition-all transform hover:scale-105 ${link.color} text-white shadow-lg group`}
+          >
+            <div className="bg-white/20 p-2 rounded-lg group-hover:bg-white/30 transition-colors">
+              {link.icon}
+            </div>
+            <div className="font-bold text-lg">{link.name}</div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function App() {
 
 
   const { connectedPlatforms } = useChatStore();
   const { currentTheme } = useThemeStore();
   const [showSettings, setShowSettings] = useState(false);
+  const [showDonations, setShowDonations] = useState(false);
   const [notification, setNotification] = useState<{ message: string, type: 'error' | 'info' | 'success' }>({ message: '', type: 'info' });
 
   const showNotification = (message: string, type: 'error' | 'info' | 'success' = 'info') => {
@@ -788,6 +842,13 @@ function App() {
               🛠️
             </button>
             <button
+              onClick={() => setShowDonations(true)}
+              className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-xl hover:from-yellow-600 hover:to-orange-600 transition-all flex items-center gap-2 shadow-md hover:shadow-lg mr-2"
+            >
+              <Gift className="w-5 h-5" />
+              Donar
+            </button>
+            <button
               onClick={() => setShowSettings(!showSettings)}
               className="bg-white/10 text-white px-4 py-2 rounded-xl hover:bg-white/20 transition-all flex items-center gap-2 shadow-md hover:shadow-lg"
             >
@@ -803,6 +864,38 @@ function App() {
           <ConnectionStatus platform="TikTok" icon={<Music className="w-4 h-4" />} connected={connectedPlatforms.tiktok} />
         </div>
       </header>
+
+      {/* Donation Modal */}
+      {showDonations && (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl border border-white/20 w-full max-w-md shadow-2xl animate-fadeIn">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Gift className="w-6 h-6 text-yellow-500" />
+                  Donaciones
+                </h2>
+                <button
+                  onClick={() => setShowDonations(false)}
+                  className="p-2 text-white/50 hover:text-white bg-white/5 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <DonationModal onClose={() => setShowDonations(false)} />
+            </div>
+            <style>{`
+              @keyframes fadeIn {
+                from { opacity: 0; transform: scale(0.95); }
+                to { opacity: 1; transform: scale(1); }
+              }
+              .animate-fadeIn {
+                animation: fadeIn 0.2s ease-out forwards;
+              }
+            `}</style>
+          </div>
+        </div>
+      )}
 
       {/* Settings Modal */}
       {showSettings && (
