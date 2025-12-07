@@ -43,4 +43,11 @@ contextBridge.exposeInMainWorld('electron', {
         return await ipcRenderer.invoke('open-widget-window', config);
     },
     invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+    send: (channel, ...args) => ipcRenderer.send(channel, ...args),
+    onServerStatus: (callback) => {
+        ipcRenderer.on('server-status', (event, data) => callback(data));
+    },
+    onServerError: (callback) => {
+        ipcRenderer.on('server-error', (event, error) => callback(error));
+    },
 });

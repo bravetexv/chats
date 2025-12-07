@@ -13,7 +13,6 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true,
             webSecurity: false,
-            webSecurity: false,
         },
         // Disfrazar Electron como Chrome normal para evitar bloqueos de Streamlabs
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -27,12 +26,6 @@ function createWindow() {
         mainWindow.loadURL('http://localhost:5173');
         // DevTools can be opened manually with the 🛠️ button
         // mainWindow.webContents.openDevTools({ mode: 'detach' });
-
-        // mainWindow.webContents.on('did-finish-load', () => {
-        //     if (!mainWindow.webContents.isDevToolsOpened()) {
-        //         mainWindow.webContents.openDevTools({ mode: 'detach' });
-        //     }
-        // });
     } else {
         // Modo producción: cargar desde dist
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -305,5 +298,125 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.exit(0);
+    }
+});
+
+// --- Chat Widget Server Implementation ---
+const express = require('express');
+const { Server } = require('socket.io');
+const http = require('http');
+const ip = require('ip');
+
+let serverApp = null;
+let httpServer = null;
+let io = null;
+let serverPort = 3000;
+
+function stopServer() {
+    if (io) {
+        io.close();
+        io = null;
+    }
+    if (httpServer) {
+        httpServer.close(() => {
+            console.log('🛑 Server stopped');
+        });
+        httpServer = null;
+    }
+    serverApp = null;
+}
+
+function startServer(port) {
+    stopServer(); // Ensure previous instance is closed
+    serverPort = port || 3000;
+
+    try {
+        serverApp = express();
+        httpServer = http.createServer(serverApp);
+        io = new Server(httpServer, {
+            cors: {
+                origin: "*", // Allow access from anywhere (LAN)
+                methods: ["GET", "POST"]
+            }
+        });
+
+        // Serve static files (widget.html and assets)
+        serverApp.use(express.static(path.join(__dirname, 'public')));
+
+        // Specific route for the widget
+        serverApp.get('/widget', (req, res) => {
+            res.sendFile(path.join(__dirname, 'widget.html'));
+        });
+
+        io.on('connection', (socket) => {
+            console.log('🔌 New widget client connected:', socket.id);
+
+            // Send initial configuration if needed
+            socket.emit('config', {
+                // Any initial config
+            });
+
+            socket.on('disconnect', () => {
+                console.log('❌ Widget client disconnected:', socket.id);
+            });
+        });
+
+        httpServer.on('error', (e) => {
+            console.error('❌ Server error:', e);
+            if (e.code === 'EADDRINUSE') {
+                console.error(`Port ${serverPort} is already in use.`);
+                if (mainWindow) {
+                    mainWindow.webContents.send('server-error', `Port ${serverPort} is already in use.`);
+                }
+            }
+        });
+
+        httpServer.listen(serverPort, '0.0.0.0', () => {
+            const localIp = ip.address();
+            console.log(`🚀 Server started running at http://${localIp}:${serverPort}/widget`);
+            if (mainWindow) {
+                mainWindow.webContents.send('server-status', {
+                    running: true,
+                    url: `http://${localIp}:${serverPort}/widget`,
+                    port: serverPort
+                });
+            }
+        });
+
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to start server:', error);
+        return false;
+    }
+}
+
+// IPC Handlers for Server
+ipcMain.handle('start-server', (event, port) => {
+    return startServer(port);
+});
+
+ipcMain.handle('stop-server', () => {
+    stopServer();
+    return true;
+});
+
+ipcMain.handle('get-server-url', () => {
+    if (httpServer && httpServer.listening) {
+        const localIp = ip.address();
+        return `http://${localIp}:${serverPort}/widget`;
+    }
+    return null;
+});
+
+ipcMain.on('broadcast-message', (event, message) => {
+    if (io) {
+        io.emit('chat-message', message);
+    }
+});
+
+// Forward TTS commands to widget if needed (or just include in chat-message)
+ipcMain.on('broadcast-tts', (event, ttsData) => {
+    if (io) {
+        io.emit('tts-message', ttsData);
     }
 });

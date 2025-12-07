@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Twitch, Youtube, Zap, Music, Settings, X, Info } from 'lucide-react';
+import { Twitch, Youtube, Zap, Music, Settings, X, Info, Copy, Globe, Server } from 'lucide-react';
 
 import { useChatStore } from './store/chatStore';
 import { useThemeStore, predefinedThemes } from './store/themeStore';
@@ -47,7 +47,123 @@ function ConnectionStatus({ platform, icon, connected }: { platform: string, ico
   );
 }
 
+function ServerSettings({ showNotification }: { showNotification: (msg: string, type: 'error' | 'info' | 'success') => void }) {
+  const { serverEnabled, serverPort, serverUrl, setServerEnabled, setServerPort, setServerUrl } = useChatStore();
+  const [localPort, setLocalPort] = useState(serverPort);
 
+  React.useEffect(() => {
+    if ((window as any).electron) {
+      // Listen for status updates
+      (window as any).electron.onServerStatus((status: any) => {
+        if (status.running) {
+          setServerUrl(status.url);
+          setServerEnabled(true);
+        }
+      });
+
+      (window as any).electron.onServerError((error: string) => {
+        showNotification(error, 'error');
+        setServerEnabled(false);
+      });
+
+      // Check initial status if needed or just rely on store
+    }
+  }, []);
+
+  const toggleServer = async () => {
+    if (!serverEnabled) {
+      if ((window as any).electron) {
+        const success = await (window as any).electron.invoke('start-server', localPort);
+        if (success) {
+          showNotification(`Servidor iniciado en puerto ${localPort}`, 'success');
+          setServerEnabled(true);
+          setServerPort(localPort);
+        } else {
+          showNotification('Error al iniciar el servidor', 'error');
+        }
+      }
+    } else {
+      if ((window as any).electron) {
+        await (window as any).electron.invoke('stop-server');
+        showNotification('Servidor detenido', 'info');
+        setServerEnabled(false);
+        setServerUrl('');
+      }
+    }
+  };
+
+  const copyUrl = () => {
+    if (serverUrl) {
+      navigator.clipboard.writeText(serverUrl);
+      showNotification('URL copiada al portapapeles', 'success');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <label className="text-white/70 text-sm mb-3 block font-semibold flex items-center gap-2">
+          <Server className="w-4 h-4 text-blue-400" />
+          Servidor de Widget (OBS / Red Local)
+        </label>
+        <div className="space-y-4 bg-white/5 p-4 rounded-lg">
+
+          {/* Enable Toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-white font-medium">Habilitar Servidor Local</div>
+              <div className="text-white/50 text-xs">Permite conectar widgets desde otras PCs o OBS</div>
+            </div>
+            <button
+              onClick={toggleServer}
+              className={`w-12 h-6 rounded-full transition-colors relative ${serverEnabled ? 'bg-blue-600' : 'bg-white/20'}`}
+            >
+              <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${serverEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          {/* Port Configuration */}
+          <div>
+            <label className="text-white font-medium mb-2 block">Puerto del Servidor</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={localPort}
+                onChange={(e) => setLocalPort(Number(e.target.value))}
+                disabled={serverEnabled}
+                className={`flex-1 bg-white/10 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${serverEnabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
+            </div>
+            <p className="text-xs text-white/40 mt-1">Puerto por defecto: 3000. Cambia si hay conflictos.</p>
+          </div>
+
+          {/* URL Display */}
+          {serverEnabled && serverUrl && (
+            <div className="animate-fadeIn">
+              <label className="text-white font-medium mb-2 block">URL del Widget</label>
+              <div className="flex gap-2 items-center bg-black/30 p-2 rounded-lg border border-white/10">
+                <Globe className="w-4 h-4 text-blue-400 ml-2" />
+                <code className="flex-1 text-blue-300 font-mono text-sm overflow-x-auto whitespace-nowrap scrollbar-hide">
+                  {serverUrl}
+                </code>
+                <button
+                  onClick={copyUrl}
+                  className="p-2 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors"
+                  title="Copiar URL"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-white/40 mt-2">
+                💡 Copia esta URL y pégala en OBS (Browser Source) o en el navegador de otra PC en la misma red.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SettingsContent({ showNotification }: { showNotification: (msg: string, type: 'error' | 'info' | 'success') => void }) {
   const [activeTab, setActiveTab] = useState('connections');
@@ -122,11 +238,12 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
 
   return (
     <div>
+
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-white/10">
+      <div className="flex gap-2 mb-6 border-b border-white/10 overflow-x-auto">
         <button
           onClick={() => setActiveTab('connections')}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'connections'
+          className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'connections'
             ? 'text-purple-400 border-b-2 border-purple-400'
             : 'text-white/50 hover:text-white/70'
             }`}
@@ -135,7 +252,7 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
         </button>
         <button
           onClick={() => setActiveTab('themes')}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'themes'
+          className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'themes'
             ? 'text-purple-400 border-b-2 border-purple-400'
             : 'text-white/50 hover:text-white/70'
             }`}
@@ -144,447 +261,470 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
         </button>
         <button
           onClick={() => setActiveTab('accessibility')}
-          className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'accessibility'
+          className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'accessibility'
             ? 'text-purple-400 border-b-2 border-purple-400'
             : 'text-white/50 hover:text-white/70'
             }`}
         >
           Accesibilidad
         </button>
-
+        <button
+          onClick={() => setActiveTab('server')}
+          className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'server'
+            ? 'text-blue-400 border-b-2 border-blue-400'
+            : 'text-white/50 hover:text-white/70'
+            }`}
+        >
+          Servidor Widget
+        </button>
       </div>
 
       {/* Conexiones Tab */}
-      {activeTab === 'connections' && (
-        <div className="space-y-6">
-          {/* Twitch */}
-          <div>
-            <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
-              <span className="text-purple-400">🟣</span> Canal de Twitch
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={twitchChannel}
-                onChange={(e) => setTwitchChannel(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleConnectTwitch()}
-                placeholder="nombre_del_canal"
-                className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
+      {
+        activeTab === 'connections' && (
+          <div className="space-y-6">
+            {/* Twitch */}
+            <div>
+              <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
+                <span className="text-purple-400">🟣</span> Canal de Twitch
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={twitchChannel}
+                  onChange={(e) => setTwitchChannel(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleConnectTwitch()}
+                  placeholder="nombre_del_canal"
+                  className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <button
+                  onClick={handleConnectTwitch}
+                  className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Conectar
+                </button>
+              </div>
               <button
-                onClick={handleConnectTwitch}
-                className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  startTwitchOAuth();
+                  showNotification('Ventana de Twitch abierta. Inicia sesión si es necesario, luego cierra la ventana y usa el botón "Conectar" arriba.', 'info');
+                }}
+                className="mt-2 w-full bg-purple-600/50 text-white px-4 py-2 rounded-lg hover:bg-purple-600 text-sm transition-colors"
               >
-                Conectar
+                🔐 Iniciar Sesión en Twitch (si es necesario)
               </button>
+              <p className="text-white/40 text-xs mt-1">
+                <strong>Paso 1:</strong> Si no estás logueado, haz clic arriba para iniciar sesión.
+                <br />
+                <strong>Paso 2:</strong> Luego cierra la ventana de login y usa el botón "Conectar" de arriba con el nombre del canal.
+                <br />
+                💡 La aplicación usará tu sesión automáticamente.
+              </p>
             </div>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                startTwitchOAuth();
-                showNotification('Ventana de Twitch abierta. Inicia sesión si es necesario, luego cierra la ventana y usa el botón "Conectar" arriba.', 'info');
-              }}
-              className="mt-2 w-full bg-purple-600/50 text-white px-4 py-2 rounded-lg hover:bg-purple-600 text-sm transition-colors"
-            >
-              🔐 Iniciar Sesión en Twitch (si es necesario)
-            </button>
-            <p className="text-white/40 text-xs mt-1">
-              <strong>Paso 1:</strong> Si no estás logueado, haz clic arriba para iniciar sesión.
-              <br />
-              <strong>Paso 2:</strong> Luego cierra la ventana de login y usa el botón "Conectar" de arriba con el nombre del canal.
-              <br />
-              💡 La aplicación usará tu sesión automáticamente.
-            </p>
-          </div>
 
-          {/* YouTube */}
-          <div>
-            <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
-              <span className="text-red-400">🔴</span> Canal de YouTube
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={youtubeChannel}
-                onChange={(e) => setYoutubeChannel(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleConnectYouTube()}
-                placeholder="@username o link del canal"
-                className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-              <button
-                onClick={handleConnectYouTube}
-                className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Conectar
-              </button>
+            {/* YouTube */}
+            <div>
+              <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
+                <span className="text-red-400">🔴</span> Canal de YouTube
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={youtubeChannel}
+                  onChange={(e) => setYoutubeChannel(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleConnectYouTube()}
+                  placeholder="@username o link del canal"
+                  className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                />
+                <button
+                  onClick={handleConnectYouTube}
+                  className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Conectar
+                </button>
+              </div>
+              <div className="mt-2 text-white/40 text-xs space-y-1">
+                <p>✅ La API está configurada y funcional</p>
+                <p>⚠️ Solo funciona si el canal está en vivo</p>
+                <p>💡 El envío de mensajes requiere que seas el dueño del canal</p>
+              </div>
             </div>
-            <div className="mt-2 text-white/40 text-xs space-y-1">
-              <p>✅ La API está configurada y funcional</p>
-              <p>⚠️ Solo funciona si el canal está en vivo</p>
-              <p>💡 El envío de mensajes requiere que seas el dueño del canal</p>
-            </div>
-          </div>
 
-          {/* Kick */}
-          <div>
-            <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
-              <span className="text-green-400">🟢</span> Canal de Kick
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={kickChannel}
-                onChange={(e) => setKickChannel(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleConnectKick()}
-                placeholder="username"
-                className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+            {/* Kick */}
+            <div>
+              <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
+                <span className="text-green-400">🟢</span> Canal de Kick
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={kickChannel}
+                  onChange={(e) => setKickChannel(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleConnectKick()}
+                  placeholder="username"
+                  className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <button
+                  onClick={handleConnectKick}
+                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Conectar
+                </button>
+              </div>
               <button
-                onClick={handleConnectKick}
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  if ((window as any).electron) {
+                    await (window as any).electron.showKickWindow();
+                    showNotification('Ventana de Kick abierta. Inicia sesión si es necesario, luego cierra la ventana y usa el botón "Conectar" arriba.', 'info');
+                  } else {
+                    showNotification('Esta función solo está disponible en la versión de escritorio', 'error');
+                  }
+                }}
+                className="mt-2 w-full bg-green-600/50 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm transition-colors"
               >
-                Conectar
+                🔐 Iniciar Sesión en Kick (si es necesario)
               </button>
+              <p className="text-white/40 text-xs mt-1">
+                <strong>Paso 1:</strong> Si no estás logueado, haz clic arriba para iniciar sesión.
+                <br />
+                <strong>Paso 2:</strong> Luego cierra la ventana de login y usa el botón "Conectar" de arriba con el nombre del canal.
+                <br />
+                💡 La aplicación usará tu sesión automáticamente.
+              </p>
             </div>
-            <button
-              onClick={async (e) => {
-                e.preventDefault();
-                if ((window as any).electron) {
-                  await (window as any).electron.showKickWindow();
-                  showNotification('Ventana de Kick abierta. Inicia sesión si es necesario, luego cierra la ventana y usa el botón "Conectar" arriba.', 'info');
-                } else {
-                  showNotification('Esta función solo está disponible en la versión de escritorio', 'error');
-                }
-              }}
-              className="mt-2 w-full bg-green-600/50 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm transition-colors"
-            >
-              🔐 Iniciar Sesión en Kick (si es necesario)
-            </button>
-            <p className="text-white/40 text-xs mt-1">
-              <strong>Paso 1:</strong> Si no estás logueado, haz clic arriba para iniciar sesión.
-              <br />
-              <strong>Paso 2:</strong> Luego cierra la ventana de login y usa el botón "Conectar" de arriba con el nombre del canal.
-              <br />
-              💡 La aplicación usará tu sesión automáticamente.
-            </p>
-          </div>
 
-          {/* TikTok */}
-          <div>
-            <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
-              <span className="text-pink-400">🩷</span> Usuario de TikTok
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={tiktokChannel}
-                onChange={(e) => setTiktokChannel(e.target.value)}
-                placeholder="@username"
-                disabled
-                className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 opacity-50 cursor-not-allowed"
-              />
-              <button
-                disabled
-                className="bg-pink-600 text-white px-6 py-2 rounded-lg opacity-50 cursor-not-allowed"
-              >
-                Conectar
-              </button>
+            {/* TikTok */}
+            <div>
+              <label className="text-white/70 text-sm mb-2 block font-semibold flex items-center gap-2">
+                <span className="text-pink-400">🩷</span> Usuario de TikTok
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={tiktokChannel}
+                  onChange={(e) => setTiktokChannel(e.target.value)}
+                  placeholder="@username"
+                  disabled
+                  className="flex-1 bg-white/10 text-white placeholder-white/30 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 opacity-50 cursor-not-allowed"
+                />
+                <button
+                  disabled
+                  className="bg-pink-600 text-white px-6 py-2 rounded-lg opacity-50 cursor-not-allowed"
+                >
+                  Conectar
+                </button>
+              </div>
+              <p className="text-white/40 text-xs mt-1">💡 Próximamente</p>
             </div>
-            <p className="text-white/40 text-xs mt-1">💡 Próximamente</p>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Temas Tab */}
-      {activeTab === 'themes' && (
-        <div className="space-y-6">
-          {/* Temas Predefinidos */}
-          <div>
-            <label className="text-white/70 text-sm mb-3 block font-semibold">Temas Predefinidos</label>
-            <div className="grid grid-cols-2 gap-3">
-              {predefinedThemes.map((theme) => (
-                <button
-                  key={theme.name}
-                  onClick={() => setTheme(theme)}
-                  className={`p-4 rounded-lg text-sm font-medium transition-all ${currentTheme.name === theme.name
-                    ? 'ring-2 ring-purple-500 bg-white/20'
-                    : 'bg-white/10 hover:bg-white/15'
-                    }`}
-                >
-                  <div className={`h-12 rounded mb-2 bg-gradient-to-r ${theme.gradient}`}></div>
-                  <div className="text-white">{theme.name}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Imagen de Fondo Personalizada */}
-          <div>
-            <label className="text-white/70 text-sm mb-3 block font-semibold">Imagen de Fondo Personalizada</label>
-            <div className="space-y-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-                id="background-upload"
-              />
-              <div className="flex gap-2">
-                <label
-                  htmlFor="background-upload"
-                  className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer text-center text-sm font-medium transition-colors"
-                >
-                  📁 Subir Imagen
-                </label>
-                {currentTheme.backgroundImage && (
+      {
+        activeTab === 'themes' && (
+          <div className="space-y-6">
+            {/* Temas Predefinidos */}
+            <div>
+              <label className="text-white/70 text-sm mb-3 block font-semibold">Temas Predefinidos</label>
+              <div className="grid grid-cols-2 gap-3">
+                {predefinedThemes.map((theme) => (
                   <button
-                    onClick={() => setCustomBackground(null)}
-                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+                    key={theme.name}
+                    onClick={() => setTheme(theme)}
+                    className={`p-4 rounded-lg text-sm font-medium transition-all ${currentTheme.name === theme.name
+                      ? 'ring-2 ring-purple-500 bg-white/20'
+                      : 'bg-white/10 hover:bg-white/15'
+                      }`}
                   >
-                    🗑️ Quitar
+                    <div className={`h-12 rounded mb-2 bg-gradient-to-r ${theme.gradient}`}></div>
+                    <div className="text-white">{theme.name}</div>
                   </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Imagen de Fondo Personalizada */}
+            <div>
+              <label className="text-white/70 text-sm mb-3 block font-semibold">Imagen de Fondo Personalizada</label>
+              <div className="space-y-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="background-upload"
+                />
+                <div className="flex gap-2">
+                  <label
+                    htmlFor="background-upload"
+                    className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 cursor-pointer text-center text-sm font-medium transition-colors"
+                  >
+                    📁 Subir Imagen
+                  </label>
+                  {currentTheme.backgroundImage && (
+                    <button
+                      onClick={() => setCustomBackground(null)}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+                    >
+                      🗑️ Quitar
+                    </button>
+                  )}
+                </div>
+
+                {currentTheme.backgroundImage && (
+                  <div className="space-y-3 bg-white/5 p-4 rounded-lg">
+                    <div className="relative h-32 rounded overflow-hidden">
+                      <img
+                        src={currentTheme.backgroundImage}
+                        alt="Background preview"
+                        className="w-full h-full object-cover"
+                        style={{
+                          filter: `blur(${currentTheme.backgroundBlur}px)`,
+                          opacity: currentTheme.backgroundOpacity / 100,
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-white/70 text-xs mb-1 block">
+                        Desenfoque: {currentTheme.backgroundBlur}px
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="20"
+                        value={currentTheme.backgroundBlur}
+                        onChange={(e) => setBackgroundBlur(Number(e.target.value))}
+                        className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-white/70 text-xs mb-1 block">
+                        Opacidad: {currentTheme.backgroundOpacity}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={currentTheme.backgroundOpacity}
+                        onChange={(e) => setBackgroundOpacity(Number(e.target.value))}
+                        className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
-
-              {currentTheme.backgroundImage && (
-                <div className="space-y-3 bg-white/5 p-4 rounded-lg">
-                  <div className="relative h-32 rounded overflow-hidden">
-                    <img
-                      src={currentTheme.backgroundImage}
-                      alt="Background preview"
-                      className="w-full h-full object-cover"
-                      style={{
-                        filter: `blur(${currentTheme.backgroundBlur}px)`,
-                        opacity: currentTheme.backgroundOpacity / 100,
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-white/70 text-xs mb-1 block">
-                      Desenfoque: {currentTheme.backgroundBlur}px
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="20"
-                      value={currentTheme.backgroundBlur}
-                      onChange={(e) => setBackgroundBlur(Number(e.target.value))}
-                      className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-white/70 text-xs mb-1 block">
-                      Opacidad: {currentTheme.backgroundOpacity}%
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={currentTheme.backgroundOpacity}
-                      onChange={(e) => setBackgroundOpacity(Number(e.target.value))}
-                      className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Accesibilidad Tab */}
-      {activeTab === 'accessibility' && (
-        <div className="space-y-6">
-          <div>
-            <label className="text-white/70 text-sm mb-3 block font-semibold">Text-to-Speech (Voz)</label>
-            <div className="space-y-4 bg-white/5 p-4 rounded-lg">
-              {/* Enable TTS */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-white font-medium">Leer mensajes por voz</div>
-                  <div className="text-white/50 text-xs">Lee automáticamente los mensajes nuevos</div>
+      {
+        activeTab === 'accessibility' && (
+          <div className="space-y-6">
+            {/* ... existing accessibility content ... */}
+            <div>
+              <label className="text-white/70 text-sm mb-3 block font-semibold">Text-to-Speech (Voz)</label>
+              <div className="space-y-4 bg-white/5 p-4 rounded-lg">
+                {/* Enable TTS */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-white font-medium">Leer mensajes por voz</div>
+                    <div className="text-white/50 text-xs">Lee automáticamente los mensajes nuevos</div>
+                  </div>
+                  <button
+                    onClick={() => setTtsEnabled(!ttsEnabled)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${ttsEnabled ? 'bg-purple-600' : 'bg-white/20'}`}
+                  >
+                    <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${ttsEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setTtsEnabled(!ttsEnabled)}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${ttsEnabled ? 'bg-purple-600' : 'bg-white/20'}`}
-                >
-                  <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${ttsEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                </button>
-              </div>
 
-              {/* Read Name */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-white font-medium">Leer nombre del usuario</div>
-                  <div className="text-white/50 text-xs">Incluye el nombre del remitente antes del mensaje</div>
+                {/* Read Name */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-white font-medium">Leer nombre del usuario</div>
+                    <div className="text-white/50 text-xs">Incluye el nombre del remitente antes del mensaje</div>
+                  </div>
+                  <button
+                    onClick={() => setTtsReadName(!ttsReadName)}
+                    className={`w-12 h-6 rounded-full transition-colors relative ${ttsReadName ? 'bg-purple-600' : 'bg-white/20'}`}
+                  >
+                    <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${ttsReadName ? 'translate-x-6' : 'translate-x-0'}`} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setTtsReadName(!ttsReadName)}
-                  className={`w-12 h-6 rounded-full transition-colors relative ${ttsReadName ? 'bg-purple-600' : 'bg-white/20'}`}
-                >
-                  <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${ttsReadName ? 'translate-x-6' : 'translate-x-0'}`} />
-                </button>
-              </div>
 
-              {/* Language Selection */}
-              <div>
-                <label className="text-white font-medium mb-2 block">Filtrar voces por idioma</label>
-                <select
-                  value={ttsLanguage}
-                  onChange={(e) => {
-                    setTtsLanguage(e.target.value);
-                    setTtsVoice(''); // Reset voice when language changes
+                {/* Language Selection */}
+                <div>
+                  <label className="text-white font-medium mb-2 block">Filtrar voces por idioma</label>
+                  <select
+                    value={ttsLanguage}
+                    onChange={(e) => {
+                      setTtsLanguage(e.target.value);
+                      setTtsVoice(''); // Reset voice when language changes
+                    }}
+                    className="w-full bg-white/10 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    style={{ colorScheme: 'dark' }}
+                  >
+                    <option value="" style={{ backgroundColor: '#1f2937', color: 'white' }}>🌍 Todos los idiomas</option>
+                    <option value="es" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇪🇸 Español</option>
+                    <option value="en" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇺🇸 Inglés</option>
+                    <option value="pt" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇧🇷 Portugués</option>
+                    <option value="fr" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇫🇷 Francés</option>
+                    <option value="de" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇩🇪 Alemán</option>
+                    <option value="it" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇹 Italiano</option>
+                    <option value="ja" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇯🇵 Japonés</option>
+                    <option value="ko" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇰🇷 Coreano</option>
+                    <option value="zh" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇨🇳 Chino</option>
+                    <option value="ru" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇷🇺 Ruso</option>
+                    <option value="ar" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇸🇦 Árabe</option>
+                    <option value="hi" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇳 Hindi</option>
+                    <option value="nl" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇳🇱 Holandés</option>
+                    <option value="pl" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇵🇱 Polaco</option>
+                    <option value="tr" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇹🇷 Turco</option>
+                    <option value="sv" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇸🇪 Sueco</option>
+                    <option value="da" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇩🇰 Danés</option>
+                    <option value="no" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇳🇴 Noruego</option>
+                    <option value="fi" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇫🇮 Finlandés</option>
+                    <option value="el" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇬🇷 Griego</option>
+                    <option value="he" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇱 Hebreo</option>
+                    <option value="th" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇹🇭 Tailandés</option>
+                    <option value="vi" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇻🇳 Vietnamita</option>
+                    <option value="id" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇩 Indonesio</option>
+                    <option value="cs" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇨🇿 Checo</option>
+                    <option value="hu" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇭🇺 Húngaro</option>
+                    <option value="ro" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇷🇴 Rumano</option>
+                    <option value="uk" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇺🇦 Ucraniano</option>
+                    <option value="ca" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇪🇸 Catalán</option>
+                  </select>
+                  <p className="text-xs text-white/40 mt-1">Filtra las voces por idioma</p>
+                </div>
+
+                {/* Voice Selection */}
+                <div>
+                  <label className="text-white font-medium mb-2 block">Voz ({ttsLanguage ? `Idioma: ${ttsLanguage}` : 'Todas'})</label>
+                  <select
+                    value={ttsVoice}
+                    onChange={(e) => setTtsVoice(e.target.value)}
+                    className="w-full bg-white/10 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    style={{ colorScheme: 'dark' }}
+                  >
+                    <option value="" style={{ backgroundColor: '#1f2937', color: 'white' }}>Voz por defecto del sistema</option>
+                    {availableVoices
+                      .filter(voice => !ttsLanguage || voice.lang.startsWith(ttsLanguage))
+                      .map((voice) => (
+                        <option key={voice.voiceURI} value={voice.voiceURI} style={{ backgroundColor: '#1f2937', color: 'white' }}>
+                          {voice.name} ({voice.lang})
+                        </option>
+                      ))}
+                  </select>
+                  {ttsLanguage && availableVoices.filter(voice => voice.lang.startsWith(ttsLanguage)).length === 0 && (
+                    <p className="text-xs text-red-400 mt-1">⚠️ No hay voces disponibles para este idioma</p>
+                  )}
+                </div>
+
+                {/* Rate Control */}
+                <div>
+                  <label className="text-white font-medium mb-1 block">
+                    Velocidad: {ttsRate.toFixed(1)}x
+                  </label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={ttsRate}
+                    onChange={(e) => setTtsRate(Number(e.target.value))}
+                    className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                  />
+                  <div className="flex justify-between text-xs text-white/40 mt-1">
+                    <span>Lento</span>
+                    <span>Rápido</span>
+                  </div>
+                </div>
+
+                {/* Pitch Control */}
+                <div>
+                  <label className="text-white font-medium mb-1 block">
+                    Tono: {ttsPitch.toFixed(1)}
+                  </label>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="2"
+                    step="0.1"
+                    value={ttsPitch}
+                    onChange={(e) => setTtsPitch(Number(e.target.value))}
+                    className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                  />
+                  <div className="flex justify-between text-xs text-white/40 mt-1">
+                    <span>Grave</span>
+                    <span>Agudo</span>
+                  </div>
+                </div>
+
+                {/* Volume Control */}
+                <div>
+                  <label className="text-white font-medium mb-1 block">
+                    Volumen: {Math.round(ttsVolume * 100)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={ttsVolume}
+                    onChange={(e) => setTtsVolume(Number(e.target.value))}
+                    className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                  />
+                  <div className="flex justify-between text-xs text-white/40 mt-1">
+                    <span>Silencio</span>
+                    <span>Máximo</span>
+                  </div>
+                </div>
+
+                {/* Test Button */}
+                <button
+                  onClick={() => {
+                    const testText = ttsReadName ? "Usuario de ejemplo dice: Este es un mensaje de prueba" : "Este es un mensaje de prueba";
+                    const utterance = new SpeechSynthesisUtterance(testText);
+                    utterance.lang = ttsLanguage || 'es-ES';
+                    utterance.rate = ttsRate;
+                    utterance.pitch = ttsPitch;
+                    utterance.volume = ttsVolume;
+                    if (ttsVoice) {
+                      const voices = window.speechSynthesis.getVoices();
+                      const selectedVoice = voices.find(v => v.voiceURI === ttsVoice);
+                      if (selectedVoice) utterance.voice = selectedVoice;
+                    }
+                    window.speechSynthesis.speak(utterance);
                   }}
-                  className="w-full bg-white/10 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  style={{ colorScheme: 'dark' }}
+                  className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors font-medium"
                 >
-                  <option value="" style={{ backgroundColor: '#1f2937', color: 'white' }}>🌍 Todos los idiomas</option>
-                  <option value="es" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇪🇸 Español</option>
-                  <option value="en" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇺🇸 Inglés</option>
-                  <option value="pt" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇧🇷 Portugués</option>
-                  <option value="fr" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇫🇷 Francés</option>
-                  <option value="de" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇩🇪 Alemán</option>
-                  <option value="it" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇹 Italiano</option>
-                  <option value="ja" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇯🇵 Japonés</option>
-                  <option value="ko" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇰🇷 Coreano</option>
-                  <option value="zh" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇨🇳 Chino</option>
-                  <option value="ru" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇷🇺 Ruso</option>
-                  <option value="ar" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇸🇦 Árabe</option>
-                  <option value="hi" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇳 Hindi</option>
-                  <option value="nl" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇳🇱 Holandés</option>
-                  <option value="pl" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇵🇱 Polaco</option>
-                  <option value="tr" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇹🇷 Turco</option>
-                  <option value="sv" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇸🇪 Sueco</option>
-                  <option value="da" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇩🇰 Danés</option>
-                  <option value="no" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇳🇴 Noruego</option>
-                  <option value="fi" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇫🇮 Finlandés</option>
-                  <option value="el" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇬🇷 Griego</option>
-                  <option value="he" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇱 Hebreo</option>
-                  <option value="th" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇹🇭 Tailandés</option>
-                  <option value="vi" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇻🇳 Vietnamita</option>
-                  <option value="id" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇮🇩 Indonesio</option>
-                  <option value="cs" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇨🇿 Checo</option>
-                  <option value="hu" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇭🇺 Húngaro</option>
-                  <option value="ro" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇷🇴 Rumano</option>
-                  <option value="uk" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇺🇦 Ucraniano</option>
-                  <option value="ca" style={{ backgroundColor: '#1f2937', color: 'white' }}>🇪🇸 Catalán</option>
-                </select>
-                <p className="text-xs text-white/40 mt-1">Filtra las voces por idioma</p>
+                  🔊 Probar Voz
+                </button>
               </div>
-
-              {/* Voice Selection */}
-              <div>
-                <label className="text-white font-medium mb-2 block">Voz ({ttsLanguage ? `Idioma: ${ttsLanguage}` : 'Todas'})</label>
-                <select
-                  value={ttsVoice}
-                  onChange={(e) => setTtsVoice(e.target.value)}
-                  className="w-full bg-white/10 text-white px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  style={{ colorScheme: 'dark' }}
-                >
-                  <option value="" style={{ backgroundColor: '#1f2937', color: 'white' }}>Voz por defecto del sistema</option>
-                  {availableVoices
-                    .filter(voice => !ttsLanguage || voice.lang.startsWith(ttsLanguage))
-                    .map((voice) => (
-                      <option key={voice.voiceURI} value={voice.voiceURI} style={{ backgroundColor: '#1f2937', color: 'white' }}>
-                        {voice.name} ({voice.lang})
-                      </option>
-                    ))}
-                </select>
-                {ttsLanguage && availableVoices.filter(voice => voice.lang.startsWith(ttsLanguage)).length === 0 && (
-                  <p className="text-xs text-red-400 mt-1">⚠️ No hay voces disponibles para este idioma</p>
-                )}
-              </div>
-
-              {/* Rate Control */}
-              <div>
-                <label className="text-white font-medium mb-1 block">
-                  Velocidad: {ttsRate.toFixed(1)}x
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={ttsRate}
-                  onChange={(e) => setTtsRate(Number(e.target.value))}
-                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                />
-                <div className="flex justify-between text-xs text-white/40 mt-1">
-                  <span>Lento</span>
-                  <span>Rápido</span>
-                </div>
-              </div>
-
-              {/* Pitch Control */}
-              <div>
-                <label className="text-white font-medium mb-1 block">
-                  Tono: {ttsPitch.toFixed(1)}
-                </label>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={ttsPitch}
-                  onChange={(e) => setTtsPitch(Number(e.target.value))}
-                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                />
-                <div className="flex justify-between text-xs text-white/40 mt-1">
-                  <span>Grave</span>
-                  <span>Agudo</span>
-                </div>
-              </div>
-
-              {/* Volume Control */}
-              <div>
-                <label className="text-white font-medium mb-1 block">
-                  Volumen: {Math.round(ttsVolume * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={ttsVolume}
-                  onChange={(e) => setTtsVolume(Number(e.target.value))}
-                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                />
-                <div className="flex justify-between text-xs text-white/40 mt-1">
-                  <span>Silencio</span>
-                  <span>Máximo</span>
-                </div>
-              </div>
-
-              {/* Test Button */}
-              <button
-                onClick={() => {
-                  const testText = ttsReadName ? "Usuario de ejemplo dice: Este es un mensaje de prueba" : "Este es un mensaje de prueba";
-                  const utterance = new SpeechSynthesisUtterance(testText);
-                  utterance.lang = ttsLanguage || 'es-ES';
-                  utterance.rate = ttsRate;
-                  utterance.pitch = ttsPitch;
-                  utterance.volume = ttsVolume;
-                  if (ttsVoice) {
-                    const voices = window.speechSynthesis.getVoices();
-                    const selectedVoice = voices.find(v => v.voiceURI === ttsVoice);
-                    if (selectedVoice) utterance.voice = selectedVoice;
-                  }
-                  window.speechSynthesis.speak(utterance);
-                }}
-                className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors font-medium"
-              >
-                🔊 Probar Voz
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
+
+      {/* Widget Server Tab */}
+      {
+        activeTab === 'server' && (
+          <ServerSettings showNotification={showNotification} />
+        )
+      }
 
 
-    </div>
+
+    </div >
   );
 }
 

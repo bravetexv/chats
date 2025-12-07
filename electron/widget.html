@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Widget</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: transparent;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            text-shadow: 1px 1px 2px black, 0 0 1em black; /* High contrast for OBS */
+        }
+
+        #chat-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            max-height: 100vh;
+            overflow-y: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .message {
+            margin-bottom: 8px;
+            animation: fadeIn 0.3s ease-out;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 8px 12px;
+            border-radius: 8px;
+            backdrop-filter: blur(2px);
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .platform-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+            display: inline-block;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .platform-twitch { background-image: url('https://static.twitchcdn.net/assets/favicon-32-e29e246c157142c94346.png'); }
+        .platform-kick { background-image: url('https://kick.com/favicon.ico'); filter: invert(1); } /* Kick icon usually black */
+        .platform-youtube { background-image: url('https://www.youtube.com/s/desktop/12d6b690/img/favicon_32x32.png'); }
+
+        .username {
+            margin-right: 6px;
+        }
+
+        .badges {
+            display: flex;
+            gap: 4px;
+            margin-right: 6px;
+        }
+        
+        .badge {
+            height: 14px;
+            width: 14px;
+            background-color: #555;
+            border-radius: 2px;
+        }
+
+        .content {
+            font-size: 1.1em;
+            line-height: 1.4;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const container = document.getElementById('chat-container');
+        const MAX_MESSAGES = 50;
+
+        // TTS Queue
+        let ttsQueue = [];
+        let isSpeaking = false;
+
+        function processTtsQueue() {
+            if (isSpeaking || ttsQueue.length === 0) return;
+
+            const { text, voice, rate, pitch, volume } = ttsQueue.shift();
+            isSpeaking = true;
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            if (voice) {
+                const voices = window.speechSynthesis.getVoices();
+                const selectedVoice = voices.find(v => v.name === voice || v.voiceURI === voice);
+                if (selectedVoice) utterance.voice = selectedVoice;
+            }
+            utterance.rate = rate || 1;
+            utterance.pitch = pitch || 1;
+            utterance.volume = volume || 1;
+
+            utterance.onend = () => {
+                isSpeaking = false;
+                processTtsQueue();
+            };
+
+            utterance.onerror = () => {
+                isSpeaking = false;
+                processTtsQueue();
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        socket.on('connect', () => {
+            console.log('Connected to chat server');
+        });
+
+        socket.on('chat-message', (msg) => {
+            addMessage(msg);
+        });
+
+        socket.on('tts-message', (data) => {
+            ttsQueue.push(data);
+            processTtsQueue();
+        });
+
+        function addMessage(msg) {
+            const div = document.createElement('div');
+            div.className = 'message';
+            
+            // Determine platform icon class
+            let platformClass = 'platform-twitch';
+            if (msg.platform === 'kick') platformClass = 'platform-kick';
+            if (msg.platform === 'youtube') platformClass = 'platform-youtube';
+
+            div.innerHTML = `
+                <div class="message-header">
+                    <span class="platform-icon ${platformClass}"></span>
+                    <span class="username" style="color: ${msg.color || '#fff'}">${msg.username}</span>
+                </div>
+                <div class="content">${msg.content}</div>
+            `;
+
+            container.appendChild(div);
+
+            // Auto-scroll
+            window.scrollTo(0, document.body.scrollHeight);
+
+            // Prune old messages
+            while (container.children.length > MAX_MESSAGES) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        // Initialize voices
+        window.speechSynthesis.getVoices();
+    </script>
+</body>
+</html>
