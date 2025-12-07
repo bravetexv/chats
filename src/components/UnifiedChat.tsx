@@ -3,7 +3,7 @@ import { sendMessageTwitch } from '../services/twitchService';
 import { sendMessageYouTube } from '../services/youtubeService';
 import { sendMessageKick } from '../services/kickService';
 import { useChatStore } from '../store/chatStore';
-import { Send, Twitch, Youtube, Zap, Music } from 'lucide-react';
+import { Send, Twitch, Youtube, Zap } from 'lucide-react';
 import type { ChatMessage } from '../types';
 
 interface UnifiedChatProps {
@@ -14,27 +14,23 @@ const platformIcons = {
     twitch: <Twitch className="w-5 h-5" />,
     youtube: <Youtube className="w-5 h-5" />,
     kick: <Zap className="w-5 h-5" />,
-    tiktok: <Music className="w-5 h-5" />,
 };
 
 const platformColors = {
     twitch: 'bg-purple-600/20 border-purple-500',
     youtube: 'bg-red-600/20 border-red-500',
     kick: 'bg-green-500/20 border-green-500',
-    tiktok: 'bg-pink-500/20 border-pink-500',
 };
 
 const platformTextColors = {
     twitch: 'text-purple-400',
     youtube: 'text-red-400',
     kick: 'text-green-400',
-    tiktok: 'text-pink-400',
 };
 
 export function UnifiedChat({ messages }: UnifiedChatProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [inputMessage, setInputMessage] = useState('');
-    const [selectedPlatform, setSelectedPlatform] = useState<'twitch' | 'youtube' | 'kick' | null>(null);
     const { connectedPlatforms } = useChatStore();
 
     useEffect(() => {
@@ -42,17 +38,6 @@ export function UnifiedChat({ messages }: UnifiedChatProps) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
-
-    // Auto-select platform if only one is connected
-    useEffect(() => {
-        const connected = Object.entries(connectedPlatforms).filter(([_, isConnected]) => isConnected);
-        if (connected.length === 1) {
-            const platform = connected[0][0] as 'twitch' | 'youtube' | 'kick';
-            if (['twitch', 'youtube', 'kick'].includes(platform)) {
-                setSelectedPlatform(platform);
-            }
-        }
-    }, [connectedPlatforms]);
 
     // TTS Logic
     const lastReadMessageId = useRef<string | null>(null);
@@ -90,21 +75,29 @@ export function UnifiedChat({ messages }: UnifiedChatProps) {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputMessage.trim() || !selectedPlatform) return;
+        if (!inputMessage.trim()) return;
 
-        let success = false;
-        if (selectedPlatform === 'twitch') {
-            success = await sendMessageTwitch(inputMessage);
-        } else if (selectedPlatform === 'youtube') {
-            success = await sendMessageYouTube(inputMessage);
-        } else if (selectedPlatform === 'kick') {
-            success = await sendMessageKick(inputMessage);
+        // Check if at least one platform is connected
+        const hasConnectedPlatform = connectedPlatforms.twitch || connectedPlatforms.youtube || connectedPlatforms.kick;
+        if (!hasConnectedPlatform) {
+            alert('No hay plataformas conectadas. Conecta al menos una plataforma para enviar mensajes.');
+            return;
         }
 
-        if (success) {
+        // Send to all connected platforms
+        const results = await Promise.allSettled([
+            connectedPlatforms.twitch ? sendMessageTwitch(inputMessage) : Promise.resolve(false),
+            connectedPlatforms.youtube ? sendMessageYouTube(inputMessage) : Promise.resolve(false),
+            connectedPlatforms.kick ? sendMessageKick(inputMessage) : Promise.resolve(false),
+        ]);
+
+        // Check if at least one succeeded
+        const anySuccess = results.some(result => result.status === 'fulfilled' && result.value === true);
+
+        if (anySuccess) {
             setInputMessage('');
         } else {
-            alert('Error al enviar mensaje. Verifica la conexión.');
+            alert('Error al enviar mensaje a todas las plataformas. Verifica las conexiones.');
         }
     };
 
@@ -157,65 +150,21 @@ export function UnifiedChat({ messages }: UnifiedChatProps) {
 
             {/* Message Input Area */}
             <div className="p-3 bg-black/60 border-t border-white/10">
-                <form onSubmit={handleSendMessage} className="flex flex-col gap-2">
-                    {/* Platform Selector */}
-                    <div className="flex gap-2">
-                        {connectedPlatforms.twitch && (
-                            <button
-                                type="button"
-                                onClick={() => setSelectedPlatform('twitch')}
-                                className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition-colors ${selectedPlatform === 'twitch'
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-white/10 text-white/50 hover:bg-white/20'
-                                    }`}
-                            >
-                                <Twitch className="w-3 h-3" /> Twitch
-                            </button>
-                        )}
-                        {connectedPlatforms.youtube && (
-                            <button
-                                type="button"
-                                onClick={() => setSelectedPlatform('youtube')}
-                                className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition-colors ${selectedPlatform === 'youtube'
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-white/10 text-white/50 hover:bg-white/20'
-                                    }`}
-                            >
-                                <Youtube className="w-3 h-3" /> YouTube
-                            </button>
-                        )}
-                        {connectedPlatforms.kick && (
-                            <button
-                                type="button"
-                                onClick={() => setSelectedPlatform('kick')}
-                                className={`px-3 py-1 rounded text-xs font-bold flex items-center gap-1 transition-colors ${selectedPlatform === 'kick'
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-white/10 text-white/50 hover:bg-white/20'
-                                    }`}
-                            >
-                                <Zap className="w-3 h-3" /> Kick
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Input Field */}
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            value={inputMessage}
-                            onChange={(e) => setInputMessage(e.target.value)}
-                            placeholder={selectedPlatform ? `Enviar a ${selectedPlatform}...` : "Selecciona una plataforma..."}
-                            disabled={!selectedPlatform}
-                            className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500 disabled:opacity-50"
-                        />
-                        <button
-                            type="submit"
-                            disabled={!inputMessage.trim() || !selectedPlatform}
-                            className="bg-purple-600 hover:bg-purple-700 disabled:bg-white/10 disabled:text-white/20 text-white p-2 rounded transition-colors"
-                        >
-                            <Send className="w-4 h-4" />
-                        </button>
-                    </div>
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <input
+                        type="text"
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        placeholder="Enviar a todas las plataformas conectadas..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+                    />
+                    <button
+                        type="submit"
+                        disabled={!inputMessage.trim()}
+                        className="bg-purple-600 hover:bg-purple-700 disabled:bg-white/10 disabled:text-white/20 text-white p-2 rounded transition-colors"
+                    >
+                        <Send className="w-4 h-4" />
+                    </button>
                 </form>
             </div>
         </div>

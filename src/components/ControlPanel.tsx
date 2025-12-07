@@ -3,15 +3,16 @@ import { Send, Save, Plus, Trash2, Settings, X } from 'lucide-react';
 import { useSavedMessagesStore } from '../store/savedMessagesStore';
 import { useThemeStore, predefinedThemes } from '../store/themeStore';
 import { useConnectedChannelsStore } from '../store/connectedChannelsStore';
-import type { Platform } from '../types';
 
 export function ControlPanel() {
     const [input, setInput] = useState('');
     const [showSavedMessages, setShowSavedMessages] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
-    const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['twitch', 'youtube', 'kick', 'tiktok']);
 
-    const { twitchChannel } = useConnectedChannelsStore();
+    const { twitchChannel, youtubeChannel, kickChannel } = useConnectedChannelsStore();
+
+    // Helper to check if any platform is connected
+    const anyPlatformConnected = Boolean(twitchChannel || youtubeChannel || kickChannel);
 
     const handleSend = async () => {
         if (!input.trim()) return;
@@ -20,32 +21,42 @@ export function ControlPanel() {
         let sentCount = 0;
         const errors: string[] = [];
 
-        // Intentar enviar a Twitch
-        if (selectedPlatforms.includes('twitch') && twitchChannel) {
+        // Enviar a Twitch si está conectado
+        if (twitchChannel) {
             try {
                 const { sendMessageTwitch } = await import('../services/twitchService');
                 const success = await sendMessageTwitch(message);
-                if (success) {
-                    sentCount++;
-                } else {
-                    errors.push('Twitch: No conectado o error al enviar');
-                }
+                if (success) sentCount++;
+                else errors.push('Twitch: No conectado o error al enviar');
             } catch (error) {
                 errors.push('Twitch: Error al enviar');
             }
-        } else if (selectedPlatforms.includes('twitch')) {
-            errors.push('Twitch: No hay canal conectado');
         }
 
-        // Avisar sobre limitaciones de otras plataformas
-        if (selectedPlatforms.includes('youtube')) {
-            errors.push('YouTube: Solo lectura (no se puede enviar)');
+        // Enviar a Kick si está conectado
+
+        // Enviar a YouTube si está conectado
+        if (youtubeChannel) {
+            try {
+                const { sendMessageYouTube } = await import('../services/youtubeService');
+                const success = await sendMessageYouTube(message);
+                if (success) sentCount++;
+                else errors.push('YouTube: No conectado o error al enviar');
+            } catch (error) {
+                errors.push('YouTube: Error al enviar');
+            }
         }
-        if (selectedPlatforms.includes('kick')) {
-            errors.push('Kick: Solo lectura (no se puede enviar)');
-        }
-        if (selectedPlatforms.includes('tiktok')) {
-            errors.push('TikTok: No implementado');
+
+        // Enviar a Kick si está conectado
+        if (kickChannel) {
+            try {
+                const { sendMessageKick } = await import('../services/kickService');
+                const success = await sendMessageKick(message);
+                if (success) sentCount++;
+                else errors.push('Kick: No conectado o error al enviar');
+            } catch (error) {
+                errors.push('Kick: Error al enviar');
+            }
         }
 
         if (sentCount > 0) {
@@ -62,43 +73,16 @@ export function ControlPanel() {
         }
     };
 
-    const togglePlatform = (platform: Platform) => {
-        setSelectedPlatforms(prev =>
-            prev.includes(platform)
-                ? prev.filter(p => p !== platform)
-                : [...prev, platform]
-        );
-    };
-
     return (
         <div className="bg-black/40 backdrop-blur-md border-t border-white/10 relative z-20">
             <div className="px-4 py-2 border-b border-white/5 flex gap-2 items-center">
-                <span className="text-white/50 text-sm mr-2">Enviar a:</span>
-                {(['twitch', 'youtube', 'kick', 'tiktok'] as Platform[]).map((platform) => (
-                    <button
-                        key={platform}
-                        onClick={() => togglePlatform(platform)}
-                        className={`px-3 py-1 rounded-md text-xs capitalize transition-all ${selectedPlatforms.includes(platform)
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-white/10 text-white/50 hover:bg-white/20'
-                            }`}
-                    >
-                        {platform}
-                    </button>
-                ))}
-                <div className="ml-auto flex gap-2">
-                    <button
-                        onClick={() => setSelectedPlatforms(['twitch', 'youtube', 'kick', 'tiktok'])}
-                        className="px-3 py-1 rounded-md text-xs bg-white/10 text-white/70 hover:bg-white/20 transition-all"
-                    >
-                        ✓ Todos
-                    </button>
-                    <button
-                        onClick={() => setSelectedPlatforms([])}
-                        className="px-3 py-1 rounded-md text-xs bg-white/10 text-white/70 hover:bg-white/20 transition-all"
-                    >
-                        ✗ Ninguno
-                    </button>
+                <span className="text-white/50 text-sm mr-2">Enviar a plataformas conectadas</span>
+                <div className="ml-auto flex items-center text-xs text-white/50">
+                    {anyPlatformConnected ? (
+                        <span className="px-2 py-1 bg-white/10 rounded">Conectadas</span>
+                    ) : (
+                        <span className="px-2 py-1 bg-white/5 rounded">Ninguna conectada</span>
+                    )}
                 </div>
             </div>
 
@@ -113,7 +97,7 @@ export function ControlPanel() {
                 />
                 <button
                     onClick={handleSend}
-                    disabled={!input.trim() || selectedPlatforms.length === 0}
+                    disabled={!input.trim() || !anyPlatformConnected}
                     className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                     <Send className="w-5 h-5" />
@@ -365,9 +349,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                         </div>
                     </div>
 
-                    <div className="text-white/50 text-xs border-t border-white/10 pt-3">
-                        <p>💡 Próximamente: TikTok</p>
-                    </div>
+
                 </div>
             )}
 

@@ -74,7 +74,6 @@ export const useChatStore = create<ChatState>()(
                 twitch: false,
                 youtube: false,
                 kick: false,
-                tiktok: false,
             },
             setConnected: (platform, isConnected) => set((state) => ({
                 connectedPlatforms: { ...state.connectedPlatforms, [platform]: isConnected }
@@ -84,7 +83,6 @@ export const useChatStore = create<ChatState>()(
                 twitch: 0,
                 youtube: 0,
                 kick: 0,
-                tiktok: 0,
             },
             setViewerCount: (platform, count) => set((state) => ({
                 viewerCounts: { ...state.viewerCounts, [platform]: count }

@@ -11,7 +11,7 @@ interface SavedMessagesState {
 export const useSavedMessagesStore = create<SavedMessagesState>((set) => ({
     savedMessages: [
         { id: '1', title: 'Bienvenida', content: '¡Bienvenidos al stream! 👋' },
-        { id: '2', title: 'Redes', content: 'Sígueme en todas las plataformas: Twitch, YouTube, Kick y TikTok!' },
+        { id: '2', title: 'Redes', content: 'Sígueme en todas las plataformas: Twitch, YouTube y Kick!' },
         { id: '3', title: 'Gracias', content: 'Gracias por el apoyo! 💜' },
     ],
 

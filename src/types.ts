@@ -1,4 +1,4 @@
-export type Platform = 'twitch' | 'youtube' | 'kick' | 'tiktok';
+export type Platform = 'twitch' | 'youtube' | 'kick';
 
 export interface ChatMessage {
     id: string;

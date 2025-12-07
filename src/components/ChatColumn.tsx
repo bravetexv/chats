@@ -13,7 +13,6 @@ const platformColors: Record<Platform | 'unified', string> = {
     twitch: 'bg-purple-600',
     youtube: 'bg-red-600',
     kick: 'bg-green-500',
-    tiktok: 'bg-pink-500',
     unified: 'bg-blue-600',
 };
 
