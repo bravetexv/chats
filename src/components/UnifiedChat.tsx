@@ -1,9 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
-import { sendMessageTwitch } from '../services/twitchService';
-import { sendMessageYouTube } from '../services/youtubeService';
-import { sendMessageKick } from '../services/kickService';
+import { useRef, useEffect } from 'react';
 import { useChatStore } from '../store/chatStore';
-import { Send, Twitch, Youtube, Zap } from 'lucide-react';
+import { Twitch, Youtube, Zap } from 'lucide-react';
 import type { ChatMessage } from '../types';
 
 interface UnifiedChatProps {
@@ -30,8 +27,6 @@ const platformTextColors = {
 
 export function UnifiedChat({ messages }: UnifiedChatProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
-    const [inputMessage, setInputMessage] = useState('');
-    const { connectedPlatforms } = useChatStore();
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -72,34 +67,6 @@ export function UnifiedChat({ messages }: UnifiedChatProps) {
             window.speechSynthesis.speak(utterance);
         }
     }, [messages, ttsEnabled, ttsReadName, ttsVoice, ttsLanguage, ttsRate, ttsPitch, ttsVolume]);
-
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!inputMessage.trim()) return;
-
-        // Check if at least one platform is connected
-        const hasConnectedPlatform = connectedPlatforms.twitch || connectedPlatforms.youtube || connectedPlatforms.kick;
-        if (!hasConnectedPlatform) {
-            alert('No hay plataformas conectadas. Conecta al menos una plataforma para enviar mensajes.');
-            return;
-        }
-
-        // Send to all connected platforms
-        const results = await Promise.allSettled([
-            connectedPlatforms.twitch ? sendMessageTwitch(inputMessage) : Promise.resolve(false),
-            connectedPlatforms.youtube ? sendMessageYouTube(inputMessage) : Promise.resolve(false),
-            connectedPlatforms.kick ? sendMessageKick(inputMessage) : Promise.resolve(false),
-        ]);
-
-        // Check if at least one succeeded
-        const anySuccess = results.some(result => result.status === 'fulfilled' && result.value === true);
-
-        if (anySuccess) {
-            setInputMessage('');
-        } else {
-            alert('Error al enviar mensaje a todas las plataformas. Verifica las conexiones.');
-        }
-    };
 
     return (
         <div className="h-full flex flex-col border rounded-lg overflow-hidden bg-black/40 backdrop-blur-sm border-white/10">
@@ -146,26 +113,6 @@ export function UnifiedChat({ messages }: UnifiedChatProps) {
                         </div>
                     ))
                 )}
-            </div>
-
-            {/* Message Input Area */}
-            <div className="p-3 bg-black/60 border-t border-white/10">
-                <form onSubmit={handleSendMessage} className="flex gap-2">
-                    <input
-                        type="text"
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="Enviar a todas las plataformas conectadas..."
-                        className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
-                    />
-                    <button
-                        type="submit"
-                        disabled={!inputMessage.trim()}
-                        className="bg-purple-600 hover:bg-purple-700 disabled:bg-white/10 disabled:text-white/20 text-white p-2 rounded transition-colors"
-                    >
-                        <Send className="w-4 h-4" />
-                    </button>
-                </form>
             </div>
         </div>
     );
