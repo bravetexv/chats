@@ -1,7 +1,10 @@
 const { google } = require('googleapis');
 
-const API_KEY = 'AIzaSyAS6KVqNP9SQeePDhXvYZ_oeiIls8SzRUI';
-const youtube = google.youtube({ version: 'v3', auth: API_KEY });
+let youtube = null;
+const DEFAULT_API_KEY = 'AIzaSyAS6KVqNP9SQeePDhXvYZ_oeiIls8SzRUI';
+
+// Inicializar con default por si acaso
+youtube = google.youtube({ version: 'v3', auth: DEFAULT_API_KEY });
 
 let pollingInterval = null;
 let currentLiveChatId = null;
@@ -149,8 +152,15 @@ const startChatPolling = async (liveChatId, mainWindow) => {
     await poll();
 };
 
-const connectYouTube = async (channelInput, mainWindow) => {
+const connectYouTube = async (channelInput, mainWindow, apiKey) => {
     try {
+        if (apiKey) {
+            console.log('🔑 Using provided API Key');
+            youtube = google.youtube({ version: 'v3', auth: apiKey });
+        } else {
+            console.log('⚠️ Using default API Key');
+        }
+
         console.log('🔍 Buscando canal:', channelInput);
         const channelId = await getChannelId(channelInput);
 

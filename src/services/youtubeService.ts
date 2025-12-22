@@ -1,7 +1,7 @@
 import type { ChatMessage } from '../types';
 import { useChatStore } from '../store/chatStore';
 
-export const connectYouTube = async (channelInput: string) => {
+export const connectYouTube = async (channelInput: string, apiKey?: string) => {
     const { setConnected, addMessage } = useChatStore.getState();
 
     try {
@@ -27,7 +27,7 @@ export const connectYouTube = async (channelInput: string) => {
             });
 
             // Conectar
-            const success = await (window as any).electron.invoke('connect-youtube', channelInput);
+            const success = await (window as any).electron.invoke('connect-youtube', channelInput, apiKey);
 
             if (!success) {
                 throw new Error('Failed to connect to YouTube');

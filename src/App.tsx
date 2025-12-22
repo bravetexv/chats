@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Twitch, Youtube, Zap, Settings, X, Info, Copy, Globe, Server, Gift, CreditCard, Wallet, DollarSign } from 'lucide-react';
+import { Twitch, Youtube, Zap, Settings, X, Info, Copy, Globe, Server, Gift, CreditCard, Wallet, DollarSign, Save } from 'lucide-react';
 
 import { useChatStore } from './store/chatStore';
 import { useThemeStore, predefinedThemes } from './store/themeStore';
@@ -8,6 +8,7 @@ import { connectYouTube } from './services/youtubeService';
 import { connectKick } from './services/kickService';
 import { WidgetsSidebar } from './components/WidgetsSidebar';
 import { UnifiedChat } from './components/UnifiedChat';
+import { useConnectedChannelsStore } from './store/connectedChannelsStore';
 
 // Notification Component
 function Notification({ message, type, onClose }: { message: string, type: 'error' | 'info' | 'success', onClose: () => void }) {
@@ -174,6 +175,29 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
 
   const { currentTheme, setTheme, setCustomBackground, setBackgroundBlur, setBackgroundOpacity } = useThemeStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { setYoutubeApiKey: storeYoutubeApiKey, youtubeApiKey: savedApiKey } = useConnectedChannelsStore();
+  const [apiKey, setApiKey] = useState(savedApiKey || '');
+
+  // Cargar configuración al montar
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).electron) {
+      (window as any).electron.invoke('get-settings').then((settings: any) => {
+        if (settings && settings.youtubeApiKey) {
+          setApiKey(settings.youtubeApiKey);
+          storeYoutubeApiKey(settings.youtubeApiKey);
+        }
+      });
+    }
+  }, []);
+
+  const handleSaveApiKey = async () => {
+    if (typeof window !== 'undefined' && (window as any).electron) {
+      await (window as any).electron.invoke('save-settings', { youtubeApiKey: apiKey });
+      storeYoutubeApiKey(apiKey);
+      showNotification('API Key guardada correctamente', 'success');
+    }
+  };
 
   // TTS State
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -343,6 +367,33 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
                   Conectar
                 </button>
               </div>
+
+              <div className="mt-4 bg-white/5 p-3 rounded-lg border border-white/10">
+                <label className="text-white/70 text-xs mb-2 block font-semibold flex items-center gap-2">
+                  🔑 Google API Key (Opcional)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="flex-1 bg-white/10 text-white placeholder-white/30 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-red-500 font-mono"
+                  />
+                  <button
+                    onClick={handleSaveApiKey}
+                    className="bg-white/10 text-white px-4 py-2 rounded hover:bg-white/20 text-sm flex items-center gap-2 transition-colors"
+                    title="Guardar API Key"
+                  >
+                    <Save className="w-4 h-4" />
+                    Guardar
+                  </button>
+                </div>
+                <p className="text-white/30 text-[10px] mt-2">
+                  Si tienes problemas de conexión o límites, usa tu propia API Key de Google Cloud Console (YouTube Data API v3).
+                </p>
+              </div>
+
               <div className="mt-2 text-white/40 text-xs space-y-1">
                 <p>✅ La API está configurada y funcional</p>
                 <p>⚠️ Solo funciona si el canal está en vivo</p>

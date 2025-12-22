@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Save, Plus, Trash2, Settings, X } from 'lucide-react';
 import { useSavedMessagesStore } from '../store/savedMessagesStore';
 import { useThemeStore, predefinedThemes } from '../store/themeStore';
@@ -198,7 +198,29 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     const { currentTheme, setTheme, setCustomBackground, setBackgroundBlur, setBackgroundOpacity } = useThemeStore();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { setTwitchChannel: storeTwitchChannel, setYoutubeChannel: storeYoutubeChannel, setKickChannel: storeKickChannel } = useConnectedChannelsStore();
+    const { setTwitchChannel: storeTwitchChannel, setYoutubeChannel: storeYoutubeChannel, setKickChannel: storeKickChannel, setYoutubeApiKey: storeYoutubeApiKey, youtubeApiKey: savedApiKey } = useConnectedChannelsStore();
+
+    const [apiKey, setApiKey] = useState(savedApiKey || '');
+
+    // Cargar configuración al montar
+    useEffect(() => {
+        if (typeof window !== 'undefined' && (window as any).electron) {
+            (window as any).electron.invoke('get-settings').then((settings: any) => {
+                if (settings && settings.youtubeApiKey) {
+                    setApiKey(settings.youtubeApiKey);
+                    storeYoutubeApiKey(settings.youtubeApiKey);
+                }
+            });
+        }
+    }, []);
+
+    const handleSaveApiKey = async () => {
+        if (typeof window !== 'undefined' && (window as any).electron) {
+            await (window as any).electron.invoke('save-settings', { youtubeApiKey: apiKey });
+            storeYoutubeApiKey(apiKey);
+            alert('API Key guardada correctamente');
+        }
+    };
 
     const handleConnectTwitch = async () => {
         if (twitchChannel.trim()) {
@@ -212,7 +234,8 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
         if (youtubeChannel.trim()) {
             try {
                 const { connectYouTube } = await import('../services/youtubeService');
-                await connectYouTube(youtubeChannel);
+                storeYoutubeApiKey(apiKey);
+                await connectYouTube(youtubeChannel, apiKey);
                 storeYoutubeChannel(youtubeChannel);
             } catch (error: any) {
                 console.error('Failed to connect to YouTube:', error);
@@ -326,6 +349,26 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
                             </button>
                         </div>
                         <p className="text-white/40 text-xs mt-1">Solo funciona si el canal está en vivo</p>
+
+                        <div className="mt-2">
+                            <label className="text-white/70 text-xs mb-1 block">Google API Key (Opcional si ya está configurada)</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="password"
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder="AIzaSy..."
+                                    className="flex-1 bg-white/10 text-white placeholder-white/30 px-3 py-2 rounded text-sm focus:outline-none focus:ring-1 focus:ring-red-500"
+                                />
+                                <button
+                                    onClick={handleSaveApiKey}
+                                    className="bg-white/10 text-white px-3 py-2 rounded text-sm hover:bg-white/20"
+                                    title="Guardar API Key"
+                                >
+                                    <Save className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div>

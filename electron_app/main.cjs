@@ -1,5 +1,41 @@
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const electron = require('electron');
+console.log('Process versions:', process.versions);
+console.log('Electron exports type:', typeof electron);
+const { app, BrowserWindow, ipcMain, session } = electron;
 const path = require('path');
+const fs = require('fs');
+
+// Helper para cargar configuración
+function getConfigPath() {
+    return path.join(app.getPath('userData'), 'config.json');
+}
+
+function loadConfig() {
+    try {
+        const configPath = getConfigPath();
+        if (fs.existsSync(configPath)) {
+            const data = fs.readFileSync(configPath, 'utf-8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Error loading config:', error);
+    }
+    return {};
+}
+
+// Helper para guardar configuración
+function saveConfig(config) {
+    try {
+        const configPath = getConfigPath();
+        const currentConfig = loadConfig();
+        const newConfig = { ...currentConfig, ...config };
+        fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
+        return true;
+    } catch (error) {
+        console.error('Error saving config:', error);
+        return false;
+    }
+}
 
 let mainWindow;
 let kickWindow = null;
@@ -63,6 +99,15 @@ ipcMain.handle('set-cookie', async (event, cookieDetails) => {
     } catch (error) {
     }
     return true;
+});
+
+// Manejadores de Configuración
+ipcMain.handle('get-settings', () => {
+    return loadConfig();
+});
+
+ipcMain.handle('save-settings', (event, settings) => {
+    return saveConfig(settings);
 });
 
 // Manejadores para Kick Scraping
@@ -227,9 +272,16 @@ ipcMain.on('open-devtools', () => {
 // YouTube backend handlers
 const youtubeBackend = require('./youtube-backend.cjs');
 
-ipcMain.handle('connect-youtube', async (event, channel) => {
+ipcMain.handle('connect-youtube', async (event, channel, apiKey) => {
     try {
-        await youtubeBackend.connectYouTube(channel, mainWindow);
+        // Si no se pasa apiKey explícita, intentar cargarla de la config
+        let keyToUse = apiKey;
+        if (!keyToUse) {
+            const config = loadConfig();
+            keyToUse = config.youtubeApiKey;
+        }
+
+        await youtubeBackend.connectYouTube(channel, mainWindow, keyToUse);
         return true;
     } catch (error) {
         return false;
