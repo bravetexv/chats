@@ -1,12 +1,26 @@
-const electron = require('electron');
-console.log('Process versions:', process.versions);
-console.log('Electron exports type:', typeof electron);
-const { app, BrowserWindow, ipcMain, session } = electron;
+// Check if we're running in Electron
+if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
+    // We're in Electron runtime
+    var electron = require('electron');
+    var app = electron.app;
+    var BrowserWindow = electron.BrowserWindow;
+    var ipcMain = electron.ipcMain;
+    var session = electron.session;
+} else {
+    // We're in Node.js (this shouldn't happen in production)
+    console.error('This file must be run with Electron, not Node.js');
+    process.exit(1);
+}
+
 const path = require('path');
 const fs = require('fs');
 
 // Helper para cargar configuración
 function getConfigPath() {
+    // Only call app.getPath when this function is executed, not during module load
+    if (!app || !app.getPath) {
+        throw new Error('Electron app is not ready yet');
+    }
     return path.join(app.getPath('userData'), 'config.json');
 }
 
