@@ -1,5 +1,6 @@
 import type { ChatMessage } from '../types';
 import { useChatStore } from '../store/chatStore';
+import { useConnectedChannelsStore } from '../store/connectedChannelsStore';
 import { startViewerUpdates, stopViewerUpdates } from './viewerService';
 
 // Extraer username desde URL o username directo
@@ -11,8 +12,20 @@ const extractUsername = (input: string): string => {
     return input.trim();
 };
 
+let isConnecting: boolean = false;
+let messageListenerRegistered: boolean = false;
+
 export const connectKick = async (channelInput: string) => {
     const { addMessage, setConnected } = useChatStore.getState();
+    const { setKickChannel } = useConnectedChannelsStore.getState();
+
+    // Prevenir múltiples conexiones simultáneas
+    if (isConnecting) {
+        console.warn('⚠️ Ya hay una conexión de Kick en proceso, espera...');
+        return;
+    }
+
+    isConnecting = true;
 
     try {
         const channelName = extractUsername(channelInput);
@@ -20,31 +33,43 @@ export const connectKick = async (channelInput: string) => {
 
         // Verificar si estamos en Electron
         if (typeof window !== 'undefined' && (window as any).electron) {
+            // Desconectar anterior si existe
+            if (messageListenerRegistered) {
+                console.log('🔌 Removiendo listener anterior de Kick...');
+                // El listener se sobrescribirá, pero marcamos que necesitamos limpiar
+                await disconnectKick();
+            }
+
             // Usar el puente de Electron
             const success = await (window as any).electron.connectKick(channelName);
 
             if (success) {
                 console.log('✅ Ventana de Kick conectada');
                 setConnected('kick', true);
+                setKickChannel(channelName); // Guardar canal en el store
 
                 // Start viewer updates
                 startViewerUpdates('kick', channelName);
 
-                // Escuchar mensajes
-                (window as any).electron.onKickMessage((data: any) => {
-                    console.log('📩 Kick message received:', data);
+                // Escuchar mensajes - solo registrar una vez
+                if (!messageListenerRegistered) {
+                    (window as any).electron.onKickMessage((data: any) => {
+                        console.log('📩 Kick message received:', data);
 
-                    const chatMessage: ChatMessage = {
-                        id: data.id || `kick-${Date.now()}-${Math.random()}`,
-                        platform: 'kick',
-                        username: data.username,
-                        content: data.content,
-                        timestamp: data.timestamp || Date.now(),
-                        color: data.color || '#53FC18',
-                    };
+                        const chatMessage: ChatMessage = {
+                            id: data.id || `kick-${Date.now()}-${Math.random()}`,
+                            platform: 'kick',
+                            username: data.username,
+                            content: data.content,
+                            timestamp: data.timestamp || Date.now(),
+                            color: data.color || '#53FC18',
+                        };
 
-                    addMessage(chatMessage);
-                });
+                        addMessage(chatMessage);
+                    });
+                    messageListenerRegistered = true;
+                    console.log('✅ Listener de mensajes de Kick registrado');
+                }
             } else {
                 throw new Error('No se pudo abrir la ventana de Kick');
             }
@@ -57,6 +82,8 @@ export const connectKick = async (channelInput: string) => {
         console.error('❌ Failed to connect to Kick:', error);
         setConnected('kick', false);
         throw error;
+    } finally {
+        isConnecting = false;
     }
 };
 
@@ -67,7 +94,9 @@ export const disconnectKick = async () => {
 
     stopViewerUpdates('kick');
     useChatStore.getState().setConnected('kick', false);
-    console.log('🔌 Disconnected from Kick');
+    useConnectedChannelsStore.getState().setKickChannel(null);
+    isConnecting = false;
+    console.log('✅ Desconectado de Kick');
 };
 
 export const sendMessageKick = async (message: string): Promise<boolean> => {

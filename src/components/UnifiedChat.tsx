@@ -38,6 +38,15 @@ export function UnifiedChat({ messages }: UnifiedChatProps) {
     const lastReadMessageId = useRef<string | null>(null);
     const { ttsEnabled, ttsReadName, ttsVoice, ttsLanguage, ttsRate, ttsPitch, ttsVolume } = useChatStore();
 
+    // Cancelar TTS cuando se desactiva
+    useEffect(() => {
+        if (!ttsEnabled) {
+            // Cancelar cualquier lectura en curso
+            window.speechSynthesis.cancel();
+            console.log('🔇 TTS desactivado - cancelando lecturas pendientes');
+        }
+    }, [ttsEnabled]);
+
     useEffect(() => {
         if (!ttsEnabled || messages.length === 0) return;
 

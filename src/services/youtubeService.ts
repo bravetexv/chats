@@ -1,8 +1,10 @@
 import type { ChatMessage } from '../types';
 import { useChatStore } from '../store/chatStore';
+import { useConnectedChannelsStore } from '../store/connectedChannelsStore';
 
 export const connectYouTube = async (channelInput: string, apiKey?: string) => {
     const { setConnected, addMessage } = useChatStore.getState();
+    const { setYoutubeChannel } = useConnectedChannelsStore.getState();
 
     try {
         setConnected('youtube', false);
@@ -15,6 +17,7 @@ export const connectYouTube = async (channelInput: string, apiKey?: string) => {
 
             (window as any).electron.onYouTubeConnected(() => {
                 setConnected('youtube', true);
+                setYoutubeChannel(channelInput); // Guardar canal en el store
             });
 
             (window as any).electron.onYouTubeDisconnected(() => {
@@ -46,7 +49,8 @@ export const disconnectYouTube = async () => {
     }
 
     useChatStore.getState().setConnected('youtube', false);
-    console.log('🔌 Disconnected from YouTube');
+    useConnectedChannelsStore.getState().setYoutubeChannel(null);
+    console.log('✅ Desconectado de YouTube');
 };
 
 export const sendMessageYouTube = async (message: string): Promise<boolean> => {
