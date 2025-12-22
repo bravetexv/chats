@@ -2,32 +2,57 @@ import type { ChatMessage } from '../types';
 import { useChatStore } from '../store/chatStore';
 import { useConnectedChannelsStore } from '../store/connectedChannelsStore';
 
+let listenersRegistered: boolean = false;
+let isConnecting: boolean = false;
+
 export const connectYouTube = async (channelInput: string, apiKey?: string) => {
     const { setConnected, addMessage } = useChatStore.getState();
     const { setYoutubeChannel } = useConnectedChannelsStore.getState();
+
+    // Prevenir múltiples conexiones simultáneas
+    if (isConnecting) {
+        console.warn('⚠️ Ya hay una conexión de YouTube en proceso, espera...');
+        return;
+    }
+
+    isConnecting = true;
 
     try {
         setConnected('youtube', false);
 
         if (typeof window !== 'undefined' && (window as any).electron) {
-            // Configurar listeners
-            (window as any).electron.onYouTubeMessage((data: ChatMessage) => {
-                addMessage(data);
-            });
+            // Desconectar anterior si existe
+            if (listenersRegistered) {
+                console.log('🔌 Removiendo listeners anteriores de YouTube...');
+                await disconnectYouTube();
+            }
 
-            (window as any).electron.onYouTubeConnected(() => {
-                setConnected('youtube', true);
-                setYoutubeChannel(channelInput); // Guardar canal en el store
-            });
+            // Configurar listeners solo una vez
+            if (!listenersRegistered) {
+                (window as any).electron.onYouTubeMessage((data: ChatMessage) => {
+                    console.log('📨 Nuevo mensaje de YouTube:', data.username, data.content);
+                    addMessage(data);
+                });
 
-            (window as any).electron.onYouTubeDisconnected(() => {
-                setConnected('youtube', false);
-            });
+                (window as any).electron.onYouTubeConnected(() => {
+                    setConnected('youtube', true);
+                    setYoutubeChannel(channelInput);
+                    console.log('✅ Conectado a YouTube');
+                });
 
-            (window as any).electron.onYouTubeError((error: string) => {
-                console.error('YouTube error:', error);
-                setConnected('youtube', false);
-            });
+                (window as any).electron.onYouTubeDisconnected(() => {
+                    setConnected('youtube', false);
+                    console.log('❌ Desconectado de YouTube');
+                });
+
+                (window as any).electron.onYouTubeError((error: string) => {
+                    console.error('YouTube error:', error);
+                    setConnected('youtube', false);
+                });
+
+                listenersRegistered = true;
+                console.log('✅ Listeners de YouTube registrados');
+            }
 
             // Conectar
             const success = await (window as any).electron.invoke('connect-youtube', channelInput, apiKey);
@@ -40,6 +65,8 @@ export const connectYouTube = async (channelInput: string, apiKey?: string) => {
         console.error('❌ Failed to connect to YouTube:', error);
         setConnected('youtube', false);
         throw error;
+    } finally {
+        isConnecting = false;
     }
 };
 
@@ -50,6 +77,7 @@ export const disconnectYouTube = async () => {
 
     useChatStore.getState().setConnected('youtube', false);
     useConnectedChannelsStore.getState().setYoutubeChannel(null);
+    isConnecting = false;
     console.log('✅ Desconectado de YouTube');
 };
 

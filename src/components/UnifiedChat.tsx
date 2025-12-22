@@ -43,7 +43,9 @@ export function UnifiedChat({ messages }: UnifiedChatProps) {
         if (!ttsEnabled) {
             // Cancelar cualquier lectura en curso
             window.speechSynthesis.cancel();
-            console.log('🔇 TTS desactivado - cancelando lecturas pendientes');
+            // Resetear el ID del último mensaje leído para evitar leer historial al reactivar
+            lastReadMessageId.current = null;
+            console.log('🔇 TTS desactivado - cancelando lecturas pendientes y reseteando historial');
         }
     }, [ttsEnabled]);
 
@@ -53,6 +55,12 @@ export function UnifiedChat({ messages }: UnifiedChatProps) {
         const lastMessage = messages[messages.length - 1];
         if (lastMessage.id !== lastReadMessageId.current) {
             lastReadMessageId.current = lastMessage.id;
+
+            // Verificación adicional: asegurarse que TTS sigue activado antes de hablar
+            if (!ttsEnabled) {
+                console.log('🔇 TTS desactivado durante procesamiento - cancelando');
+                return;
+            }
 
             const textToSpeak = ttsReadName
                 ? `${lastMessage.username} dice: ${lastMessage.content}`
@@ -73,7 +81,10 @@ export function UnifiedChat({ messages }: UnifiedChatProps) {
                 }
             }
 
-            window.speechSynthesis.speak(utterance);
+            // Verificación final antes de hablar
+            if (ttsEnabled) {
+                window.speechSynthesis.speak(utterance);
+            }
         }
     }, [messages, ttsEnabled, ttsReadName, ttsVoice, ttsLanguage, ttsRate, ttsPitch, ttsVolume]);
 
