@@ -340,6 +340,12 @@ app.whenReady().then(() => {
         return false;
     });
 
+    ipcMain.on('twitch-message-from-window', (event, data) => {
+        if (mainWindow) {
+            mainWindow.webContents.send('twitch-message', data);
+        }
+    });
+
     ipcMain.handle('open-oauth-window', (event, url) => {
         // Deprecated but kept for compatibility
         return true;

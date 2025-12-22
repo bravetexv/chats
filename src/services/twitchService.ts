@@ -6,11 +6,31 @@ import { startViewerUpdates, stopViewerUpdates } from './viewerService';
 
 let client: tmi.Client | null = null;
 let currentChannel: string = '';
+let messageListenerRegistered: boolean = false;
 let isConnecting: boolean = false;
 
 export const connectTwitch = async (channel: string) => {
     const { addMessage, setConnected } = useChatStore.getState();
     const { setTwitchChannel } = useConnectedChannelsStore.getState();
+
+    // Registrar listener de mensajes de la ventana (solo una vez)
+    if (typeof window !== 'undefined' && (window as any).electron && !messageListenerRegistered) {
+        (window as any).electron.onTwitchMessage((data: any) => {
+            console.log('📩 Twitch message from window:', data);
+            const chatMessage: ChatMessage = {
+                id: data.id || `twitch-win-${Date.now()}-${Math.random()}`,
+                platform: 'twitch',
+                username: data.username,
+                content: data.content,
+                timestamp: data.timestamp || Date.now(),
+                color: data.color || '#9147FF',
+                badges: data.badges || [],
+            };
+            addMessage(chatMessage);
+        });
+        messageListenerRegistered = true;
+        console.log('✅ Listener de mensajes de ventana de Twitch registrado');
+    }
 
     // Prevenir múltiples conexiones simultáneas
     if (isConnecting) {

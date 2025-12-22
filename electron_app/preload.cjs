@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('electron', {
     onKickMessage: (callback) => {
         ipcRenderer.on('kick-message', (event, data) => callback(data));
     },
+    onTwitchMessage: (callback) => {
+        ipcRenderer.on('twitch-message', (event, data) => callback(data));
+    },
     onYouTubeMessage: (callback) => {
         ipcRenderer.on('youtube-message', (event, data) => callback(data));
     },
