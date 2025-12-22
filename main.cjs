@@ -1,16 +1,20 @@
-// Check if we're running in Electron
-if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
-    // We're in Electron runtime
-    var electron = require('electron');
-    var app = electron.app;
-    var BrowserWindow = electron.BrowserWindow;
-    var ipcMain = electron.ipcMain;
-    var session = electron.session;
+const electronModule = require('electron');
+console.log('--- DEBUG START ---');
+console.log('Process versions:', JSON.stringify(process.versions, null, 2));
+console.log('Type of require("electron"):', typeof electronModule);
+if (typeof electronModule === 'string') {
+    console.log('Value of require("electron"):', electronModule);
 } else {
-    // We're in Node.js (this shouldn't happen in production)
-    console.error('This file must be run with Electron, not Node.js');
-    process.exit(1);
+    console.log('Keys of require("electron"):', Object.keys(electronModule));
 }
+
+const app = typeof electronModule === 'object' ? electronModule.app : null;
+const BrowserWindow = typeof electronModule === 'object' ? electronModule.BrowserWindow : null;
+const ipcMain = typeof electronModule === 'object' ? electronModule.ipcMain : null;
+const session = typeof electronModule === 'object' ? electronModule.session : null;
+
+console.log('App object:', typeof app);
+console.log('--- DEBUG END ---');
 
 const path = require('path');
 const fs = require('fs');
