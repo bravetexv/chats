@@ -21,7 +21,8 @@
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron_app/**/*",
+      "main.cjs"
     ],
     "win": {
       "target": [
