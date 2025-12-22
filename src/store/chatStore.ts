@@ -45,9 +45,15 @@ export const useChatStore = create<ChatState>()(
         (set, get) => ({
             messages: [],
             addMessage: (message) => {
-                set((state) => ({
-                    messages: [...state.messages, message].slice(-500) // Keep last 500 messages
-                }));
+                set((state) => {
+                    // Prevenir duplicados por ID
+                    if (state.messages.some(m => m.id === message.id)) {
+                        return state;
+                    }
+                    return {
+                        messages: [...state.messages, message].slice(-500) // Keep last 500 messages
+                    };
+                });
 
                 // Broadcast to local server widget
                 if (get().serverEnabled && (window as any).electron) {

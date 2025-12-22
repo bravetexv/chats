@@ -49,7 +49,7 @@ export const connectTwitch = async (channel: string) => {
             if (self) return;
 
             const chatMessage: ChatMessage = {
-                id: `twitch-${Date.now()}-${Math.random()}`,
+                id: tags.id || `twitch-${Date.now()}-${Math.random()}`,
                 platform: 'twitch',
                 username: tags['display-name'] || tags.username || 'Anonymous',
                 content: message,

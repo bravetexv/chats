@@ -10,7 +10,10 @@ log('✅ Kick Preload Loaded');
 window.addEventListener('DOMContentLoaded', () => {
     log('✅ Kick DOM Loaded');
 
+    const processedElements = new WeakSet();
     const processMessage = (element) => {
+        if (processedElements.has(element)) return;
+        processedElements.add(element);
         try {
             // Extraer usuario
             const usernameEl = element.querySelector('.font-bold') ||
