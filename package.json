@@ -32,6 +32,9 @@
     }
   },
   "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
     "@types/tmi.js": "^1.8.6",
     "axios": "^1.13.2",
     "clsx": "^2.1.1",
