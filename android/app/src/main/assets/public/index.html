@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat App</title>
+  <style>
+    body { 
+      background-color: #1e1e1e; 
+      color: #fff; 
+      font-family: sans-serif; 
+      margin: 0;
+      padding: 1em;
+    }
+    #chat-container {
+      height: 90vh;
+      overflow-y: scroll;
+      display: flex;
+      flex-direction: column-reverse;
+    }
+    .message-item { 
+      margin-bottom: 0.5em;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Chat Unificado</h1>
+  <div id="chat-container">
+    <!-- Los mensajes del chat aparecerán aquí -->
+  </div>
+
+  <!-- 1. Librería para conectar a Twitch -->
+  <script src="https://unpkg.com/tmi.js/client.js"></script>
+
+  <!-- 2. Nuestro servicio de chat -->
+  <script src="js/services/TwitchChatService.js"></script>
+
+  <!-- 3. Lógica principal de la aplicación -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("La aplicación ha empezado.");
+
+      const chatContainer = document.getElementById('chat-container');
+
+      // Nos conectamos al servicio de Twitch
+      // Conexión anónima a un canal público como ejemplo.
+      // ¡Cambia "midudev" por el canal que quieras ver!
+      twitchChatService.connect('midudev');
+
+      // Cuando el servicio reciba un mensaje, esta función se ejecutará
+      twitchChatService.onMessage((chatMessage) => {
+        console.log("Nuevo mensaje:", chatMessage);
+
+        // Creamos y añadimos el mensaje a la UI
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message-item');
+        
+        const authorSpan = document.createElement('span');
+        authorSpan.textContent = `${chatMessage.author.name}: `;
+        authorSpan.style.color = chatMessage.author.color || '#FFFFFF'; // Usar el color del usuario de Twitch
+        authorSpan.style.fontWeight = 'bold';
+
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = chatMessage.message;
+
+        messageElement.appendChild(authorSpan);
+        messageElement.appendChild(messageSpan);
+
+        // Añadimos el nuevo mensaje al principio del contenedor
+        chatContainer.prepend(messageElement);
+      });
+    });
+  </script>
+
+</body>
+</html>

@@ -3,7 +3,7 @@ import { Send, Save, Plus, Trash2, Settings, X } from 'lucide-react';
 import { useSavedMessagesStore } from '../store/savedMessagesStore';
 import { useThemeStore, predefinedThemes } from '../store/themeStore';
 import { useConnectedChannelsStore } from '../store/connectedChannelsStore';
-import { isElectron, isMobile } from '../services/platformService';
+import { isMobile } from '../services/platformService';
 
 export function ControlPanel() {
     const [input, setInput] = useState('');
