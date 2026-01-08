@@ -3,6 +3,7 @@ import { Send, Save, Plus, Trash2, Settings, X } from 'lucide-react';
 import { useSavedMessagesStore } from '../store/savedMessagesStore';
 import { useThemeStore, predefinedThemes } from '../store/themeStore';
 import { useConnectedChannelsStore } from '../store/connectedChannelsStore';
+import { isElectron, isMobile } from '../services/platformService';
 
 export function ControlPanel() {
     const [input, setInput] = useState('');
@@ -101,14 +102,14 @@ export function ControlPanel() {
                     className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                     <Send className="w-5 h-5" />
-                    Enviar
+                    {!isMobile() && "Enviar"}
                 </button>
                 <button
                     onClick={() => setShowSavedMessages(!showSavedMessages)}
                     className="bg-white/10 text-white px-6 py-3 rounded-lg hover:bg-white/20 flex items-center gap-2 transition-all"
                 >
                     <Save className="w-5 h-5" />
-                    Guardados
+                    {!isMobile() && "Guardados"}
                 </button>
                 <button
                     onClick={() => setShowSettings(!showSettings)}

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface ConnectedChannelsState {
     twitchChannel: string | null;
@@ -11,13 +12,20 @@ interface ConnectedChannelsState {
     setYoutubeApiKey: (key: string | null) => void;
 }
 
-export const useConnectedChannelsStore = create<ConnectedChannelsState>((set) => ({
-    twitchChannel: null,
-    youtubeChannel: null,
-    kickChannel: null,
-    youtubeApiKey: null,
-    setTwitchChannel: (channel) => set({ twitchChannel: channel }),
-    setYoutubeChannel: (channel) => set({ youtubeChannel: channel }),
-    setKickChannel: (channel) => set({ kickChannel: channel }),
-    setYoutubeApiKey: (key) => set({ youtubeApiKey: key }),
-}));
+export const useConnectedChannelsStore = create<ConnectedChannelsState>()(
+    persist(
+        (set) => ({
+            twitchChannel: null,
+            youtubeChannel: null,
+            kickChannel: null,
+            youtubeApiKey: null,
+            setTwitchChannel: (channel) => set({ twitchChannel: channel }),
+            setYoutubeChannel: (channel) => set({ youtubeChannel: channel }),
+            setKickChannel: (channel) => set({ kickChannel: channel }),
+            setYoutubeApiKey: (key) => set({ youtubeApiKey: key }),
+        }),
+        {
+            name: 'connected-channels-storage',
+        }
+    )
+);

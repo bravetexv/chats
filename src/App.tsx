@@ -9,6 +9,7 @@ import { connectKick } from './services/kickService';
 import { WidgetsSidebar } from './components/WidgetsSidebar';
 import { UnifiedChat } from './components/UnifiedChat';
 import { useConnectedChannelsStore } from './store/connectedChannelsStore';
+import { isElectron } from './services/platformService';
 
 // Notification Component
 function Notification({ message, type, onClose }: { message: string, type: 'error' | 'info' | 'success', onClose: () => void }) {
@@ -291,15 +292,17 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
         >
           Accesibilidad
         </button>
-        <button
-          onClick={() => setActiveTab('server')}
-          className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'server'
-            ? 'text-blue-400 border-b-2 border-blue-400'
-            : 'text-white/50 hover:text-white/70'
-            }`}
-        >
-          Servidor Widget
-        </button>
+        {isElectron() && (
+          <button
+            onClick={() => setActiveTab('server')}
+            className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'server'
+              ? 'text-blue-400 border-b-2 border-blue-400'
+              : 'text-white/50 hover:text-white/70'
+              }`}
+          >
+            Servidor Widget
+          </button>
+        )}
       </div>
 
       {/* Conexiones Tab */}
@@ -422,20 +425,22 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
                   Conectar
                 </button>
               </div>
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  if ((window as any).electron) {
-                    await (window as any).electron.showKickWindow();
-                    showNotification('Ventana de Kick abierta. Inicia sesión si es necesario, luego cierra la ventana y usa el botón "Conectar" arriba.', 'info');
-                  } else {
-                    showNotification('Esta función solo está disponible en la versión de escritorio', 'error');
-                  }
-                }}
-                className="mt-2 w-full bg-green-600/50 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm transition-colors"
-              >
-                🔐 Iniciar Sesión en Kick (si es necesario)
-              </button>
+              {isElectron() && (
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if ((window as any).electron) {
+                      await (window as any).electron.showKickWindow();
+                      showNotification('Ventana de Kick abierta. Inicia sesión si es necesario, luego cierra la ventana y usa el botón "Conectar" arriba.', 'info');
+                    } else {
+                      showNotification('Esta función solo está disponible en la versión de escritorio', 'error');
+                    }
+                  }}
+                  className="mt-2 w-full bg-green-600/50 text-white px-4 py-2 rounded-lg hover:bg-green-600 text-sm transition-colors"
+                >
+                  🔐 Iniciar Sesión en Kick (si es necesario)
+                </button>
+              )}
               <p className="text-white/40 text-xs mt-1">
                 <strong>Paso 1:</strong> Si no estás logueado, haz clic arriba para iniciar sesión.
                 <br />
@@ -745,7 +750,7 @@ function SettingsContent({ showNotification }: { showNotification: (msg: string,
 
       {/* Widget Server Tab */}
       {
-        activeTab === 'server' && (
+        activeTab === 'server' && isElectron() && (
           <ServerSettings showNotification={showNotification} />
         )
       }
